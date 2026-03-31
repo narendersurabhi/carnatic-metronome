@@ -22,6 +22,41 @@ export interface Beat {
   isSamam: boolean;
 }
 
+export interface DerivedBeat {
+  index: number;
+  displayNumber: number;
+  angaIndex: number;
+  angaType: AngaType;
+  angaBeatIndex: number;
+  angaLabel: string;
+  isSamam: boolean;
+}
+
+export interface AngaBoundary {
+  angaIndex: number;
+  angaType: AngaType;
+  label: string;
+  startBeat: number;
+  endBeat: number;
+  beatCount: number;
+}
+
+export interface TalaCycleSummary {
+  source: 'template' | 'sapta-tala';
+  talaId: string;
+  talaName: string;
+  jati: JatiType;
+  totalAksharas: number;
+  activeBeatDisplayNumber: number;
+}
+
+export interface DerivedTalaCycle {
+  source: 'template' | 'sapta-tala';
+  beats: DerivedBeat[];
+  totalAksharas: number;
+  angaBoundaries: AngaBoundary[];
+}
+
 export interface TemplateBlock {
   id: string;
   angaType: AngaType;

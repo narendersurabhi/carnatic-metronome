@@ -1,4 +1,18 @@
-import { AngaType, Jati, JatiType, LaghuJatiCount, PlayerSummaryState, SaptaTala, TalaDefinition, TemplateBlock } from './models';
+import {
+  AngaBoundary,
+  AngaType,
+  DerivedBeat,
+  DerivedTalaCycle,
+  Jati,
+  JatiType,
+  LaghuJatiCount,
+  PlayerSummaryState,
+  SaptaTala,
+  TalaCycleSummary,
+  TalaDefinition,
+  TalaTemplate,
+  TemplateBlock
+} from './models';
 
 const SUBSCRIPT_NUMERALS: Record<LaghuJatiCount, string> = {
   3: '₃',
@@ -94,6 +108,150 @@ export const buildSaptaTalaMockData = (defaultJati: JatiType | LaghuJatiCount = 
   });
 };
 
+const toAngaLabel = (angaType: AngaType, jati: JatiType | LaghuJatiCount): string => {
+  if (angaType === 'LAGHU') {
+    return `I${SUBSCRIPT_NUMERALS[getLaghuBeatCount(jati)]}`;
+  }
+  if (angaType === 'DHRUTAM') {
+    return 'O';
+  }
+  return 'U';
+};
+
+const deriveFromAngaPattern = (
+  angaPattern: readonly AngaType[],
+  jati: JatiType,
+  source: DerivedTalaCycle['source']
+): DerivedTalaCycle => {
+  const beats: DerivedBeat[] = [];
+  const angaBoundaries: AngaBoundary[] = [];
+
+  angaPattern.forEach((angaType, angaIndex) => {
+    const startBeat = beats.length + 1;
+    const beatCount = getAngaBeatCount(angaType, jati);
+    const label = toAngaLabel(angaType, jati);
+
+    for (let angaBeatIndex = 0; angaBeatIndex < beatCount; angaBeatIndex += 1) {
+      const displayNumber = beats.length + 1;
+      beats.push({
+        index: beats.length,
+        displayNumber,
+        angaIndex,
+        angaType,
+        angaBeatIndex,
+        angaLabel: label,
+        isSamam: displayNumber === 1
+      });
+    }
+
+    angaBoundaries.push({
+      angaIndex,
+      angaType,
+      label,
+      startBeat,
+      endBeat: startBeat + beatCount - 1,
+      beatCount
+    });
+  });
+
+  return {
+    source,
+    beats,
+    totalAksharas: beats.length,
+    angaBoundaries
+  };
+};
+
+export const deriveCycleFromSaptaTala = (talaId: string, jati: JatiType): DerivedTalaCycle => {
+  const tala = SAPTA_TALA_DEFINITIONS.find((definition) => definition.id === talaId) ?? SAPTA_TALA_DEFINITIONS[0];
+  return deriveFromAngaPattern(tala.angaPattern, jati, 'sapta-tala');
+};
+
+export const deriveCycleFromTemplate = (template: TalaTemplate, fallbackJati: JatiType): DerivedTalaCycle => {
+  const beats: DerivedBeat[] = [];
+  const angaBoundaries: AngaBoundary[] = [];
+
+  template.blocks.forEach((block, angaIndex) => {
+    const resolvedJati = block.jatiCount ?? fallbackJati;
+    const startBeat = beats.length + 1;
+    const beatCount = getAngaBeatCount(block.angaType, resolvedJati);
+    const label = toAngaLabel(block.angaType, resolvedJati);
+
+    for (let angaBeatIndex = 0; angaBeatIndex < beatCount; angaBeatIndex += 1) {
+      const displayNumber = beats.length + 1;
+      beats.push({
+        index: beats.length,
+        displayNumber,
+        angaIndex,
+        angaType: block.angaType,
+        angaBeatIndex,
+        angaLabel: label,
+        isSamam: displayNumber === 1
+      });
+    }
+
+    angaBoundaries.push({
+      angaIndex,
+      angaType: block.angaType,
+      label,
+      startBeat,
+      endBeat: startBeat + beatCount - 1,
+      beatCount
+    });
+  });
+
+  return {
+    source: 'template',
+    beats,
+    totalAksharas: computeTemplateAksharas(template.blocks, fallbackJati),
+    angaBoundaries
+  };
+};
+
+export const deriveOrderedBeatSequence = (params: {
+  talaId: string;
+  jati: JatiType;
+  template?: TalaTemplate | null;
+}): DerivedTalaCycle => {
+  if (params.template && params.template.blocks.length > 0) {
+    return deriveCycleFromTemplate(params.template, params.jati);
+  }
+
+  return deriveCycleFromSaptaTala(params.talaId, params.jati);
+};
+
+export const deriveActiveBeatDisplayNumber = (activeBeatIndex: number, totalAksharas: number): number => {
+  if (totalAksharas <= 0) {
+    return 1;
+  }
+
+  const normalized = activeBeatIndex % totalAksharas;
+  return normalized <= 0 ? totalAksharas : normalized;
+};
+
+export const deriveCycleSummary = (params: {
+  talaId: string;
+  jati: JatiType;
+  activeBeatIndex: number;
+  template?: TalaTemplate | null;
+}): TalaCycleSummary => {
+  const cycle = deriveOrderedBeatSequence(params);
+  const talaName = SAPTA_TALA_DEFINITIONS.find((tala) => tala.id === params.talaId)?.name ?? params.talaId;
+
+  return {
+    source: cycle.source,
+    talaId: params.talaId,
+    talaName,
+    jati: params.jati,
+    totalAksharas: cycle.totalAksharas,
+    activeBeatDisplayNumber: deriveActiveBeatDisplayNumber(params.activeBeatIndex, Math.max(1, cycle.totalAksharas))
+  };
+};
+
+export const getBeatIntervalMs = (bpm: number): number => {
+  const safeBpm = Math.max(1, Math.round(bpm));
+  return Math.round(60000 / safeBpm);
+};
 
 export const derivePlayerSummaryText = (state: PlayerSummaryState): string => {
   return [
