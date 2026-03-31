@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
-import { JatiType, TalaTemplate } from '../domain/models';
+import { AngaType, JatiType, LaghuJatiCount, TalaTemplate } from '../domain/models';
+import { defaultTemplate } from './mockData';
 
 interface AppState {
   selectedTala: string;
@@ -16,22 +17,12 @@ interface AppState {
   isPlaying: boolean;
   activeBeat: number;
   setField: <K extends keyof AppState>(key: K, value: AppState[K]) => void;
-  addBlock: (type: 'LAGHU' | 'DHRUTAM' | 'ANUDHRUTAM') => void;
+  addBlock: (type: AngaType) => void;
   removeBlock: (id: string) => void;
-  setLaghuJati: (id: string, jati: 3 | 4 | 5 | 7 | 9) => void;
+  setLaghuJati: (id: string, jati: LaghuJatiCount) => void;
   togglePlay: () => void;
   tickBeat: (total: number) => void;
 }
-
-const defaultTemplate: TalaTemplate = {
-  id: 'tmpl-1',
-  name: 'Practice Varnam Slow',
-  blocks: [
-    { id: 'b1', angaType: 'LAGHU', jatiCount: 4 },
-    { id: 'b2', angaType: 'DHRUTAM' },
-    { id: 'b3', angaType: 'DHRUTAM' }
-  ]
-};
 
 export const useAppStore = create<AppState>((set) => ({
   selectedTala: 'triputa-aadi',

@@ -12,6 +12,7 @@ import { PrimaryActionButton } from '../../components/builder/PrimaryActionButto
 import { SecondaryActionButton } from '../../components/builder/SecondaryActionButton';
 import { useAppStore } from '../../state/appStore';
 import { colors } from '../../theme/tokens';
+import { computeTemplateAksharas } from '../../domain/tala';
 
 const palette = [
   { type: 'LAGHU' as const, title: 'Laghu', description: 'Variable Length (4, 3, 5, 7, 9)', accentColor: colors.gold },
@@ -21,7 +22,7 @@ const palette = [
 
 export const TemplateBuilderScreen = () => {
   const s = useAppStore();
-  const total = useMemo(() => s.currentTemplate.blocks.reduce((sum, b) => sum + (b.angaType === 'LAGHU' ? b.jatiCount ?? 4 : b.angaType === 'DHRUTAM' ? 2 : 1), 0), [s.currentTemplate.blocks]);
+  const total = useMemo(() => computeTemplateAksharas(s.currentTemplate.blocks), [s.currentTemplate.blocks]);
   return <View style={styles.screen}><TopBar /><ScrollView contentContainerStyle={styles.content}><View style={styles.head}><BuilderHeader /><TemplateNameInput value={s.currentTemplate.name} onChange={(v) => s.setField('currentTemplate', { ...s.currentTemplate, name: v })} /></View><View style={styles.main}><View style={styles.sidebar}><AngaBlockLibrary blocks={palette} onAdd={s.addBlock} /><SequenceStatsCard totalAksharas={total} angaCount={s.currentTemplate.blocks.length} /></View><View style={styles.right}><SequenceTimeline blocks={s.currentTemplate.blocks.map((b) => ({ id: b.id, type: b.angaType, jatiCount: b.jatiCount }))} onRemoveBlock={s.removeBlock} onLaghuJatiChange={s.setLaghuJati} onAddNext={() => s.addBlock('DHRUTAM')} /><PlaybackSettingsCard bpm={s.bpm} volume={s.metronomeGain} onBpmChange={(v) => s.setField('bpm', v)} onVolumeChange={(v) => s.setField('metronomeGain', v)} /><View style={styles.cta}><PrimaryActionButton label="Test Sequence" onPress={() => {}} /><View style={styles.row}><SecondaryActionButton label="Save Template" onPress={() => {}} /><SecondaryActionButton label="Export PDF" onPress={() => {}} /></View></View></View></View></ScrollView><BottomNav active="Templates" /></View>;
 };
 

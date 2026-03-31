@@ -1,42 +1,39 @@
 export type AngaType = 'LAGHU' | 'DHRUTAM' | 'ANUDHRUTAM';
 export type JatiType = 'TISRA' | 'CHATURASRA' | 'KHANDA' | 'MISRA' | 'SANKEERNA';
 
-export interface Tala {
-  id: string;
-  name: string;
-  aksharas: number;
-  angaSymbols: string[];
-  angaCount: number;
-}
+export type LaghuJatiCount = 3 | 4 | 5 | 7 | 9;
 
 export interface Jati {
   id: JatiType;
   name: string;
-  count: number;
+  count: LaghuJatiCount;
   description: string;
-}
-
-export interface Anga {
-  type: AngaType;
-  beats: number;
-  symbol: string;
-}
-
-export interface Beat {
-  index: number;
-  accent: 'STRONG' | 'MEDIUM' | 'WEAK';
 }
 
 export interface TemplateBlock {
   id: string;
   angaType: AngaType;
-  jatiCount?: 3 | 4 | 5 | 7 | 9;
+  jatiCount?: LaghuJatiCount;
 }
 
 export interface TalaTemplate {
   id: string;
   name: string;
   blocks: TemplateBlock[];
+}
+
+export interface TalaDefinition {
+  id: string;
+  name: string;
+  angaPattern: readonly AngaType[];
+}
+
+export interface SaptaTala {
+  id: string;
+  name: string;
+  angaPattern: readonly AngaType[];
+  angaLabels: string[];
+  aksharas: number;
 }
 
 export interface PlayerSettings {
