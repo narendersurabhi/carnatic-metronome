@@ -1,4 +1,4 @@
-import { AngaType, Jati, JatiType, LaghuJatiCount, SaptaTala, TalaDefinition, TemplateBlock } from './models';
+import { AngaType, Jati, JatiType, LaghuJatiCount, PlayerSummaryState, SaptaTala, TalaDefinition, TemplateBlock } from './models';
 
 const SUBSCRIPT_NUMERALS: Record<LaghuJatiCount, string> = {
   3: '₃',
@@ -92,4 +92,15 @@ export const buildSaptaTalaMockData = (defaultJati: JatiType | LaghuJatiCount = 
       aksharas: computeTemplateAksharas(blocks, defaultJati)
     };
   });
+};
+
+
+export const derivePlayerSummaryText = (state: PlayerSummaryState): string => {
+  return [
+    `${state.talaName} (${state.jatiName})`,
+    `${state.bpm} BPM`,
+    `${state.instrument}`,
+    `Sruthi ${state.sruthi}`,
+    `${state.templateName} · ${state.totalAksharas} aksharas`
+  ].join(' • ');
 };
