@@ -14,6 +14,59 @@ This file tracks repository status and changes for future agent context.
 - Audio remains interface-only placeholder.
 
 ## Change Log
+### 2026-03-31 (phase-5 production hardening + ship readiness)
+- Hardened playback flow for safer runtime behavior.
+  - updated `src/domain/playbackEngine.ts`
+    - added serialized transition guard (`runTransition`) to avoid duplicate start/pause/stop races
+    - added preload promise deduplication so sample preload runs once per engine lifecycle
+    - improved BPM update handling while running by shifting next scheduled beat timing
+    - added `onError` callback wiring and guarded scheduler error handling
+    - added app lifecycle helpers: `handleAppBackground`, `handleAudioInterruption`
+- Added lightweight analytics hooks without backend dependency.
+  - added `src/services/analytics/AnalyticsService.ts`
+    - console-backed event tracker for app launch, playback, selection, templates, and audio errors
+  - updated `App.tsx`
+    - tracks `app_launch` on bootstrap
+  - updated `src/features/tala/TalaSelectionScreen.tsx`
+    - tracks `tala_selected`
+  - updated `src/features/tala/JatiSelectionScreen.tsx`
+    - tracks `jati_selected`
+  - updated `src/features/templates/TemplateBuilderScreen.tsx`
+    - tracks template save/load/play events
+  - updated `src/state/playerController.ts`
+    - tracks play start/stop and audio errors
+- Strengthened persistence reliability and migration-readiness.
+  - updated `src/state/appStore.ts`
+    - added persisted schema versioning (`version: 2`)
+    - added defensive `migrate` + `merge` sanitization for invalid/missing local data
+    - persisted `selectedTemplateId`
+    - added template lifecycle actions: `loadTemplate`, `deleteTemplate`
+- Improved UX polish and touch reliability for key workflows.
+  - updated `src/features/player/PlayerScreen.tsx`
+    - added loading indicator and dismissible audio error banner
+    - upgraded playback controls to `Pressable` with feedback and larger touch targets
+  - updated `src/features/templates/TemplateBuilderScreen.tsx`
+    - added template-name validation and inline user feedback
+    - added saved-template list with load/delete flow
+    - added empty-state handling for saved templates
+  - updated `src/components/builder/TemplateNameInput.tsx`
+    - supports validation messaging and helper text
+  - updated `src/components/builder/PrimaryActionButton.tsx`
+  - updated `src/components/builder/SecondaryActionButton.tsx`
+    - added disabled state, press feedback, and mobile-friendly target height
+- Added release preparation placeholders and docs refresh.
+  - updated `app.json`
+    - added beta metadata placeholders for owner, scheme, bundle/package IDs, icon/splash references, and EAS project ID
+  - added assets structure placeholders:
+    - `assets/icons/.gitkeep`
+    - `assets/splash/.gitkeep`
+  - updated `README.md`
+    - replaced milestone-only notes with beta-ready run/test/build guidance
+- Expanded playback tests for hardening behavior.
+  - updated `tests/playerProgression.test.ts`
+    - added preload dedupe assertion
+    - added app-background pause assertion
+
 ### 2026-03-31 (milestone-3 playback progression + tala integration)
 - Implemented deterministic cycle derivation helpers to power live player progression.
   - updated `src/domain/models.ts`

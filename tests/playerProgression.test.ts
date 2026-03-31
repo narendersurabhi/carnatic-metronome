@@ -6,14 +6,20 @@ import { AudioService, PlayBeatRequest } from '../src/services/audio/AudioServic
 
 class CaptureAudioService implements AudioService {
   public readonly events: PlayBeatRequest[] = [];
+  public preloadCount = 0;
+  public pauseCount = 0;
 
-  async preloadSamples(): Promise<void> {}
+  async preloadSamples(): Promise<void> {
+    this.preloadCount += 1;
+  }
 
   async play(request: PlayBeatRequest): Promise<void> {
     this.events.push(request);
   }
 
-  async pause(): Promise<void> {}
+  async pause(): Promise<void> {
+    this.pauseCount += 1;
+  }
   async stop(): Promise<void> {}
   async setTempo(_bpm: number): Promise<void> {}
   async setInstrument(_instrumentId: string): Promise<void> {}
@@ -136,5 +142,38 @@ describe('sample playback timing engine', () => {
     expect(service.events.length - eventsAfterRapidTaps).toBeLessThanOrEqual(2);
 
     await engine.stop();
+  });
+
+  it('preloads samples once across pause and resume', async () => {
+    const service = new CaptureAudioService();
+    const engine = new SamplePlaybackEngine({
+      bpm: 90,
+      totalAksharas: 8,
+      audioService: service,
+      onBeat: () => {}
+    });
+
+    await engine.start();
+    await engine.pause();
+    await engine.start();
+
+    expect(service.preloadCount).toBe(1);
+    await engine.stop();
+  });
+
+  it('pauses when app backgrounds', async () => {
+    const service = new CaptureAudioService();
+    const engine = new SamplePlaybackEngine({
+      bpm: 90,
+      totalAksharas: 8,
+      audioService: service,
+      onBeat: () => {}
+    });
+
+    await engine.start();
+    await engine.handleAppBackground();
+
+    expect(engine.getState()).toBe('paused');
+    expect(service.pauseCount).toBe(1);
   });
 });

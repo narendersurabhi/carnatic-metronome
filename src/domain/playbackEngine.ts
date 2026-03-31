@@ -8,6 +8,7 @@ export interface PlaybackEngineConfig {
   totalAksharas: number;
   onBeat: (activeBeatDisplayNumber: number) => void;
   onStateChange?: (state: PlaybackState) => void;
+  onError?: (error: Error) => void;
   audioService?: AudioService;
   lookAheadMs?: number;
   schedulerIntervalMs?: number;
@@ -24,6 +25,7 @@ export class SamplePlaybackEngine {
   private totalAksharas: number;
   private readonly onBeat: (activeBeatDisplayNumber: number) => void;
   private readonly onStateChange?: (state: PlaybackState) => void;
+  private readonly onError?: (error: Error) => void;
   private readonly audioService: AudioService;
   private readonly lookAheadMs: number;
   private readonly schedulerIntervalMs: number;
@@ -33,12 +35,15 @@ export class SamplePlaybackEngine {
   private uiTimers = new Set<ReturnType<typeof setTimeout>>();
   private nextBeatAtMs = 0;
   private nextBeatIndex = 0;
+  private preloadPromise: Promise<void> | null = null;
+  private transitionPromise: Promise<void> | null = null;
 
   constructor(config: PlaybackEngineConfig) {
     this.bpm = Math.max(1, Math.round(config.bpm));
     this.totalAksharas = Math.max(1, Math.round(config.totalAksharas));
     this.onBeat = config.onBeat;
     this.onStateChange = config.onStateChange;
+    this.onError = config.onError;
     this.audioService = config.audioService ?? new DebugClickAudioService();
     this.lookAheadMs = config.lookAheadMs ?? 120;
     this.schedulerIntervalMs = config.schedulerIntervalMs ?? 25;
@@ -53,47 +58,55 @@ export class SamplePlaybackEngine {
   }
 
   async start(): Promise<void> {
-    if (this.state === 'playing') {
-      return;
-    }
+    return this.runTransition(async () => {
+      if (this.state === 'playing') {
+        return;
+      }
 
-    await this.audioService.preloadSamples();
-    await this.audioService.setTempo(this.bpm);
+      await this.ensurePreloaded();
+      await this.audioService.setTempo(this.bpm);
 
-    if (this.state === 'stopped') {
-      this.nextBeatIndex = 0;
+      if (this.state === 'stopped') {
+        this.nextBeatIndex = 0;
+      }
+
       this.nextBeatAtMs = Date.now();
-    }
+      this.stopSchedulerLoop();
+      this.updateState('playing');
 
-    this.updateState('playing');
-    this.schedulerTimer = setInterval(() => {
-      void this.scheduleWindow();
-    }, this.schedulerIntervalMs);
+      this.schedulerTimer = setInterval(() => {
+        void this.scheduleWindow();
+      }, this.schedulerIntervalMs);
 
-    await this.scheduleWindow();
+      await this.scheduleWindow();
+    });
   }
 
   async pause(): Promise<void> {
-    if (this.state !== 'playing') {
-      return;
-    }
+    return this.runTransition(async () => {
+      if (this.state !== 'playing') {
+        return;
+      }
 
-    this.stopSchedulerLoop();
-    await this.audioService.pause();
-    this.updateState('paused');
+      this.stopSchedulerLoop();
+      await this.audioService.pause();
+      this.updateState('paused');
+    });
   }
 
   async stop(): Promise<void> {
-    if (this.state === 'stopped') {
-      return;
-    }
+    return this.runTransition(async () => {
+      if (this.state === 'stopped') {
+        return;
+      }
 
-    this.stopSchedulerLoop();
-    this.nextBeatIndex = 0;
-    this.nextBeatAtMs = 0;
-    await this.audioService.stop();
-    this.onBeat(1);
-    this.updateState('stopped');
+      this.stopSchedulerLoop();
+      this.nextBeatIndex = 0;
+      this.nextBeatAtMs = 0;
+      await this.audioService.stop();
+      this.onBeat(1);
+      this.updateState('stopped');
+    });
   }
 
   async seekToBeat(displayBeat: number): Promise<void> {
@@ -105,8 +118,15 @@ export class SamplePlaybackEngine {
   }
 
   async updateBpm(nextBpm: number): Promise<void> {
+    const previousIntervalMs = this.getIntervalMs();
     this.bpm = Math.max(1, Math.round(nextBpm));
     await this.audioService.setTempo(this.bpm);
+
+    if (this.state === 'playing') {
+      const nextIntervalMs = this.getIntervalMs();
+      const delta = nextIntervalMs - previousIntervalMs;
+      this.nextBeatAtMs = Math.max(Date.now(), this.nextBeatAtMs + delta);
+    }
   }
 
   updateTotalAksharas(totalAksharas: number): void {
@@ -116,6 +136,16 @@ export class SamplePlaybackEngine {
 
   async setInstrument(instrumentId: string): Promise<void> {
     await this.audioService.setInstrument(instrumentId);
+  }
+
+  async handleAppBackground(): Promise<void> {
+    if (this.state === 'playing') {
+      await this.pause();
+    }
+  }
+
+  async handleAudioInterruption(): Promise<void> {
+    await this.pause();
   }
 
   async dispose(): Promise<void> {
@@ -137,7 +167,7 @@ export class SamplePlaybackEngine {
     const intervalMs = this.getIntervalMs();
     const scheduled: ScheduledBeat[] = [];
 
-    while (this.nextBeatAtMs <= horizonMs) {
+    while (this.nextBeatAtMs <= horizonMs && this.state === 'playing') {
       const beatIndex = this.nextBeatIndex % this.totalAksharas;
       const displayBeat = beatIndex + 1;
       const sampleType: BeatSampleType = beatIndex === 0 ? 'STRONG' : 'WEAK';
@@ -147,15 +177,47 @@ export class SamplePlaybackEngine {
         atTimeMs: this.nextBeatAtMs
       };
 
-      await this.audioService.play({ sampleType, whenMs: this.nextBeatAtMs, beatIndex });
-      this.enqueueBeatUiUpdate(displayBeat, this.nextBeatAtMs);
+      try {
+        await this.audioService.play({ sampleType, whenMs: this.nextBeatAtMs, beatIndex });
+      } catch (error) {
+        this.onError?.(error instanceof Error ? error : new Error('Unable to schedule beat playback'));
+      }
 
+      this.enqueueBeatUiUpdate(displayBeat, this.nextBeatAtMs);
       scheduled.push(event);
+
       this.nextBeatIndex = (this.nextBeatIndex + 1) % this.totalAksharas;
       this.nextBeatAtMs += intervalMs;
     }
 
     return scheduled;
+  }
+
+  private async ensurePreloaded(): Promise<void> {
+    if (!this.preloadPromise) {
+      this.preloadPromise = this.audioService.preloadSamples().catch((error) => {
+        this.preloadPromise = null;
+        throw error;
+      });
+    }
+
+    await this.preloadPromise;
+  }
+
+  private runTransition(operation: () => Promise<void>): Promise<void> {
+    if (this.transitionPromise) {
+      return this.transitionPromise;
+    }
+
+    this.transitionPromise = operation()
+      .catch((error) => {
+        this.onError?.(error instanceof Error ? error : new Error('Playback transition failed'));
+      })
+      .finally(() => {
+        this.transitionPromise = null;
+      });
+
+    return this.transitionPromise;
   }
 
   private enqueueBeatUiUpdate(displayBeat: number, atTimeMs: number): void {

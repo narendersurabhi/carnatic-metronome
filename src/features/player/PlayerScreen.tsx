@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useAppStore } from '../../state/appStore';
 import { usePlayerController } from '../../state/playerController';
@@ -11,7 +11,7 @@ import { JATIS, SAPTA_TALA_DEFINITIONS, deriveCycleSummary, derivePlayerSummaryT
 
 export const PlayerScreen = () => {
   const { selectedTala, selectedJati, selectedInstrument, sruthi, currentTemplate } = useAppStore();
-  const { activeBeat, bpm, cycle, totalAksharas, playbackState, controls } = usePlayerController();
+  const { activeBeat, bpm, cycle, totalAksharas, playbackState, audioError, controls } = usePlayerController();
 
   const talaName = useMemo(
     () => SAPTA_TALA_DEFINITIONS.find((t) => t.id === selectedTala)?.name ?? selectedTala,
@@ -42,6 +42,8 @@ export const PlayerScreen = () => {
     [bpm, currentTemplate.name, jatiName, selectedInstrument, sruthi, talaName, totalAksharas]
   );
 
+  const isLoading = playbackState === 'playing' && activeBeat <= 1;
+
   return (
     <View style={styles.screen}>
       <TopBar />
@@ -55,17 +57,23 @@ export const PlayerScreen = () => {
           <Text style={styles.meta}>Sruthi: {sruthi}</Text>
           <Text style={styles.meta}>Template: {currentTemplate.name}</Text>
           <Text style={styles.meta}>Aksharas: {totalAksharas}</Text>
-          <Text style={styles.meta}>Angas: {cycle.angaBoundaries.map((anga) => anga.label).join(' · ')}</Text>
+          <Text style={styles.meta}>Angas: {cycle.angaBoundaries.map((anga) => anga.label).join(' · ') || 'No angas set'}</Text>
           <Text style={styles.meta}>Mode: {cycle.source}</Text>
         </View>
+        {isLoading ? <ActivityIndicator color={colors.gold} /> : null}
+        {audioError ? (
+          <Pressable onPress={controls.clearAudioError}>
+            <Text style={styles.error}>Audio issue: {audioError} (tap to dismiss)</Text>
+          </Pressable>
+        ) : null}
         <Text style={styles.summary}>{summaryText}</Text>
         <View style={styles.controls}>
-          <Text style={styles.play} onPress={controls.togglePlayPause}>
-            {playbackState === 'playing' ? 'Pause' : 'Play'}
-          </Text>
-          <Text style={styles.stop} onPress={controls.stopPlayback}>
-            Stop
-          </Text>
+          <Pressable style={({ pressed }) => [styles.play, pressed && styles.pressed]} onPress={controls.togglePlayPause}>
+            <Text style={styles.controlLabel}>{playbackState === 'playing' ? 'Pause' : 'Play'}</Text>
+          </Pressable>
+          <Pressable style={({ pressed }) => [styles.stop, pressed && styles.pressed]} onPress={controls.stopPlayback}>
+            <Text style={styles.controlLabel}>Stop</Text>
+          </Pressable>
         </View>
       </View>
       <BottomNav active="Player" />
@@ -90,7 +98,10 @@ const styles = StyleSheet.create({
   },
   meta: { color: colors.textMuted, textAlign: 'center' },
   summary: { color: colors.gold, fontSize: 12, textAlign: 'center', lineHeight: 18 },
+  error: { color: '#d95858', fontSize: 12, textAlign: 'center' },
   controls: { flexDirection: 'row', gap: 12 },
-  play: { color: colors.gold, borderWidth: 1, borderColor: 'rgba(233,193,118,0.2)', borderRadius: 32, paddingHorizontal: 24, paddingVertical: 12 },
-  stop: { color: colors.textMuted, borderWidth: 1, borderColor: colors.outline, borderRadius: 32, paddingHorizontal: 24, paddingVertical: 12 }
+  play: { borderWidth: 1, borderColor: 'rgba(233,193,118,0.2)', borderRadius: 32, minHeight: 48, minWidth: 110, justifyContent: 'center', alignItems: 'center' },
+  stop: { borderWidth: 1, borderColor: colors.outline, borderRadius: 32, minHeight: 48, minWidth: 110, justifyContent: 'center', alignItems: 'center' },
+  controlLabel: { color: colors.gold },
+  pressed: { opacity: 0.8 }
 });
