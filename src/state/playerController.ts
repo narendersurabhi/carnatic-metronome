@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 
-import { MockPlaybackEngine } from '../domain/playbackEngine';
+import { SamplePlaybackEngine } from '../domain/playbackEngine';
+import { ExpoSampleAudioService } from '../services/audio/AudioService';
 import { deriveOrderedBeatSequence } from '../domain/tala';
 import { useAppStore } from './appStore';
 
@@ -9,14 +10,11 @@ export const usePlayerController = () => {
     selectedTala,
     selectedJati,
     currentTemplate,
+    selectedInstrument,
     bpm,
     playbackState,
     activeBeat,
-    startPlayback,
-    pausePlayback,
-    stopPlayback,
-    advanceBeat,
-    resetActiveBeat
+    setField
   } = useAppStore();
 
   const cycle = useMemo(
@@ -30,65 +28,73 @@ export const usePlayerController = () => {
   );
 
   const totalAksharas = Math.max(1, cycle.totalAksharas);
-  const engineRef = useRef<MockPlaybackEngine | null>(null);
-  const totalAksharasRef = useRef(totalAksharas);
-
-  useEffect(() => {
-    totalAksharasRef.current = totalAksharas;
-  }, [totalAksharas]);
+  const engineRef = useRef<SamplePlaybackEngine | null>(null);
+  const actionRef = useRef<Promise<void> | null>(null);
 
   useEffect(() => {
     if (!engineRef.current) {
-      engineRef.current = new MockPlaybackEngine({
+      engineRef.current = new SamplePlaybackEngine({
         bpm,
         totalAksharas,
-        onTick: () => advanceBeat(totalAksharasRef.current)
+        audioService: new ExpoSampleAudioService(),
+        onBeat: (beat) => setField('activeBeat', beat),
+        onStateChange: (nextState) => setField('playbackState', nextState)
       });
       return;
     }
 
-    engineRef.current.updateBpm(bpm);
+    void engineRef.current.updateBpm(bpm);
     engineRef.current.updateTotalAksharas(totalAksharas);
-  }, [advanceBeat, bpm, totalAksharas]);
+  }, [bpm, setField, totalAksharas]);
 
   useEffect(() => {
-    resetActiveBeat();
-  }, [selectedTala, selectedJati, currentTemplate.id, currentTemplate.blocks, resetActiveBeat]);
+    void engineRef.current?.setInstrument(selectedInstrument);
+  }, [selectedInstrument]);
 
   useEffect(() => {
+    void engineRef.current?.seekToBeat(1);
+  }, [selectedTala, selectedJati, currentTemplate.id, currentTemplate.blocks]);
+
+  useEffect(() => {
+    return () => {
+      if (engineRef.current) {
+        void engineRef.current.dispose();
+        engineRef.current = null;
+      }
+    };
+  }, []);
+
+  const runSerially = (operation: () => Promise<void>) => {
+    if (actionRef.current) {
+      return;
+    }
+
+    actionRef.current = operation().finally(() => {
+      actionRef.current = null;
+    });
+  };
+
+  const togglePlayPause = () => {
     const engine = engineRef.current;
     if (!engine) {
       return;
     }
 
-    if (playbackState !== 'playing') {
-      engine.pause();
-      return;
-    }
-
-    engine.start();
-
-    return () => {
-      if (engineRef.current) {
-        engineRef.current.pause();
-      }
-    };
-  }, [playbackState]);
-
-  useEffect(() => {
-    return () => {
-      engineRef.current?.destroy();
-      engineRef.current = null;
-    };
-  }, []);
-
-  const togglePlayPause = () => {
     if (playbackState === 'playing') {
-      pausePlayback();
+      runSerially(() => engine.pause());
       return;
     }
 
-    startPlayback();
+    runSerially(() => engine.start());
+  };
+
+  const stop = () => {
+    const engine = engineRef.current;
+    if (!engine) {
+      return;
+    }
+
+    runSerially(() => engine.stop());
   };
 
   return {
@@ -99,7 +105,7 @@ export const usePlayerController = () => {
     playbackState,
     controls: {
       togglePlayPause,
-      stopPlayback
+      stopPlayback: stop
     }
   };
 };

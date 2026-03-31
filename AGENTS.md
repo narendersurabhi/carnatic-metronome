@@ -175,3 +175,25 @@ This file tracks repository status and changes for future agent context.
   - updated `README.md`
 - Added Milestone 2 TODO markers in placeholder audio service implementation:
   - updated `src/services/audio/AudioService.ts`
+
+### 2026-03-31 (phase-4 real audio playback + scheduler integration)
+- Replaced mock playback loop with a sample-oriented playback engine.
+  - updated `src/domain/playbackEngine.ts`
+    - introduced `SamplePlaybackEngine` with explicit transport states (`stopped`/`playing`/`paused`)
+    - added look-ahead scheduler loop, beat queueing, cycle wraparound, seek support, and tempo updates while running
+    - added UI beat synchronization callbacks decoupled from React screen components
+- Implemented replaceable real audio service abstraction and Expo-backed sample playback.
+  - updated `src/services/audio/AudioService.ts`
+    - expanded audio interface: `preloadSamples`, `play(request)`, `pause`, `stop`, `setTempo`, `setInstrument`, `seekToBeat`, `dispose`
+    - added `ExpoSampleAudioService` using preloaded per-accent samples (mridangam default with strong/medium/weak mapping)
+    - added timeout-managed scheduling safeguards and unload/dispose lifecycle
+    - kept `DebugClickAudioService` fallback for debug/non-audio environments
+- Synced player controller to real engine transport rather than component-owned timers.
+  - updated `src/state/playerController.ts`
+    - now owns one `SamplePlaybackEngine` instance
+    - wires state updates from engine callbacks (`activeBeat`, `playbackState`)
+    - handles instrument/tempo/cycle updates and serializes rapid play/pause/stop actions to avoid duplicate scheduling
+- Added playback validation tests for timing and transport behavior.
+  - updated `tests/playerProgression.test.ts`
+    - added engine scheduling assertions with fake timers + captured audio events
+    - covered BPM interval validation, loop wraparound, tempo-change behavior, and rapid play/pause duplicate-playback prevention checks
