@@ -14,6 +14,16 @@ This file tracks repository status and changes for future agent context.
 - Audio remains interface-only placeholder.
 
 ## Change Log
+### 2026-03-31 (post-jati-fix navigation error hardening)
+- Addressed additional navigation errors that appeared after the Jati back-button update.
+  - updated `src/components/navigation/BottomNav.tsx`
+    - tab navigation now targets the parent tab navigator when rendered inside the Talas stack
+    - `Talas` tab press now explicitly routes to `{ screen: 'TalaSelection' }` to avoid stale nested route state
+  - updated `src/features/tala/JatiSelectionScreen.tsx`
+    - back actions now use `navigation.canGoBack()` guard
+    - fallback navigation added to `TalaSelection` when no back history exists
+- Result: avoids unhandled `NAVIGATE` / `GO_BACK` actions when Jati screen is opened from non-standard entry paths or after tab switches.
+
 ### 2026-03-31 (native-stack onAttached runtime fix)
 - Added a runtime compatibility workaround for React Navigation native stack header crash:
   - updated `App.tsx`
