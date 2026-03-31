@@ -14,6 +14,13 @@ This file tracks repository status and changes for future agent context.
 - Audio remains interface-only placeholder.
 
 ## Change Log
+### 2026-03-31 (jati back-navigation fix)
+- Fixed Talas flow navigation gap from Jati screen back to Tala screen.
+  - updated `src/features/tala/JatiSelectionScreen.tsx`
+  - added explicit `← Back to Talas` action that calls `navigation.goBack()`
+  - wired existing `Cancel & Close` label to also call `navigation.goBack()`
+- Result: users can now return from Jati selection to Tala selection without relying on hidden gestures/device back.
+
 ### 2026-03-31 (latest update)
 - Refactored foundation toward requested app architecture.
 - Added shared tab shell and app navigation:
