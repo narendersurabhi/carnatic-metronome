@@ -67,3 +67,19 @@ This file tracks repository status and changes for future agent context.
   - updated `src/features/templates/TemplateBuilderScreen.tsx`
 - Added unit tests for domain helpers and mock data integrity.
   - added `tests/domain.test.ts`
+
+### 2026-03-31 (milestone-1 completion pass)
+- Strengthened navigation wiring for Milestone 1 acceptance:
+  - updated `src/components/navigation/AppTabs.tsx` to include a Talas stack with:
+    - `TalaSelection`
+    - `JatiSelection`
+- Made shared bottom nav interactive (tab switching now pressable):
+  - updated `src/components/navigation/BottomNav.tsx`
+- Updated tala selection screen to expose navigation to Jati selection flow:
+  - updated `src/features/tala/TalaSelectionScreen.tsx`
+- Updated player screen to render current global state values for tala/jati/bpm/instrument/template and use computed template aksharas for pulse ring/beat ticking:
+  - updated `src/features/player/PlayerScreen.tsx`
+- Added Milestone 1 README section and explicit Milestone 2 TODO markers:
+  - updated `README.md`
+- Added Milestone 2 TODO markers in placeholder audio service implementation:
+  - updated `src/services/audio/AudioService.ts`
