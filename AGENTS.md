@@ -44,3 +44,26 @@ This file tracks repository status and changes for future agent context.
 ### 2026-03-31 (previous updates)
 - Implemented stitch-matched standalone screens and reusable component sets.
 - Added scheduler and tala-engine pure TypeScript modules.
+
+### 2026-03-31 (domain/mock-state cleanup)
+- Refined domain models to keep tala/jati primitives framework-independent.
+  - updated `src/domain/models.ts`
+- Added pure TypeScript domain helpers + constants for tala math and labels.
+  - added `src/domain/tala.ts`
+  - includes:
+    - `computeTemplateAksharas`
+    - `getLaghuBeatCount`
+    - `getAngaBeatCount`
+    - `generateAngaLabels`
+    - sapta tala + jati base definitions
+- Added centralized mock data layer for app state seeding.
+  - added `src/state/mockData.ts`
+- Updated Zustand store to consume typed domain/state primitives.
+  - updated `src/state/appStore.ts`
+- Wired tala and jati feature screens to mock data layer (removed inline arrays).
+  - updated `src/features/tala/TalaSelectionScreen.tsx`
+  - updated `src/features/tala/JatiSelectionScreen.tsx`
+- Updated template builder to use shared domain helper for akshara totals.
+  - updated `src/features/templates/TemplateBuilderScreen.tsx`
+- Added unit tests for domain helpers and mock data integrity.
+  - added `tests/domain.test.ts`
