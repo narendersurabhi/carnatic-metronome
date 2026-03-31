@@ -34,7 +34,7 @@ interface AppState {
   droneGain: number;
   currentTemplate: TalaTemplate;
   savedTemplates: TalaTemplate[];
-  isPlaying: boolean;
+  playbackState: 'stopped' | 'playing' | 'paused';
   activeBeat: number;
   setField: <K extends keyof AppState>(key: K, value: AppState[K]) => void;
   addBlock: (type: AngaType) => void;
@@ -42,8 +42,11 @@ interface AppState {
   setLaghuJati: (id: string, jati: LaghuJatiCount) => void;
   saveCurrentTemplate: () => void;
   setCurrentTemplate: (template: TalaTemplate) => void;
-  togglePlay: () => void;
-  tickBeat: (total: number) => void;
+  startPlayback: () => void;
+  pausePlayback: () => void;
+  stopPlayback: () => void;
+  advanceBeat: (total: number) => void;
+  resetActiveBeat: () => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -59,7 +62,7 @@ export const useAppStore = create<AppState>()(
       droneGain: defaultSoundSettings.droneGain,
       currentTemplate: defaultTemplate,
       savedTemplates: [defaultTemplate],
-      isPlaying: false,
+      playbackState: 'stopped',
       activeBeat: 1,
       setField: (key, value) => set((state) => ({ ...state, [key]: value })),
       addBlock: (angaType) =>
@@ -102,8 +105,11 @@ export const useAppStore = create<AppState>()(
         set(() => ({
           currentTemplate: template
         })),
-      togglePlay: () => set((s) => ({ isPlaying: !s.isPlaying })),
-      tickBeat: (total) => set((s) => ({ activeBeat: ((s.activeBeat % total) || 0) + 1 }))
+      startPlayback: () => set(() => ({ playbackState: 'playing' })),
+      pausePlayback: () => set(() => ({ playbackState: 'paused' })),
+      stopPlayback: () => set(() => ({ playbackState: 'stopped', activeBeat: 1 })),
+      advanceBeat: (total) => set((s) => ({ activeBeat: (s.activeBeat % Math.max(1, total)) + 1 })),
+      resetActiveBeat: () => set(() => ({ activeBeat: 1 }))
     }),
     {
       name: 'carnatic-metronome-app-state',

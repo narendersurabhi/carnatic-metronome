@@ -14,6 +14,45 @@ This file tracks repository status and changes for future agent context.
 - Audio remains interface-only placeholder.
 
 ## Change Log
+### 2026-03-31 (milestone-3 playback progression + tala integration)
+- Implemented deterministic cycle derivation helpers to power live player progression.
+  - updated `src/domain/models.ts`
+    - added framework-independent derived cycle types: `DerivedBeat`, `AngaBoundary`, `DerivedTalaCycle`, `TalaCycleSummary`
+  - updated `src/domain/tala.ts`
+    - added pure helper functions:
+      - `deriveCycleFromSaptaTala`
+      - `deriveCycleFromTemplate`
+      - `deriveOrderedBeatSequence`
+      - `deriveActiveBeatDisplayNumber`
+      - `deriveCycleSummary`
+      - `getBeatIntervalMs`
+    - added anga boundary + beat sequencing derivation with deterministic labels and active beat display support
+- Added isolated mock playback engine for progression timing (no native/audio scheduling yet).
+  - added `src/domain/playbackEngine.ts`
+    - includes `MockPlaybackEngine` with start/pause/stop and BPM update behavior
+    - includes pure `getNextBeat` loop helper
+- Connected global app state to a dedicated player controller layer.
+  - updated `src/state/appStore.ts`
+    - replaced toggle-only play state with explicit `playbackState` (`stopped`/`playing`/`paused`)
+    - added progression actions: `startPlayback`, `pausePlayback`, `stopPlayback`, `advanceBeat`, `resetActiveBeat`
+  - added `src/state/playerController.ts`
+    - derives cycle from selected tala/jati/template
+    - manages playback progression via `MockPlaybackEngine`
+    - resets progression on tala/jati/template changes
+- Wired Player feature UI to live progression and new cycle summary data.
+  - updated `src/features/player/PlayerScreen.tsx`
+    - now consumes `usePlayerController`
+    - active beat and cycle totals update live
+    - anga boundaries + mode are displayed
+    - play/pause and stop controls now drive progression state
+- Added Milestone 3 tests for cycle derivation + progression behaviors.
+  - added `tests/playerProgression.test.ts`
+    - sapta tala sequence derivation assertions
+    - jati-driven laghu count assertions
+    - custom template totals and anga boundary assertions
+    - BPM interval logic assertions
+    - loop behavior and runtime BPM change behavior assertions
+
 ### 2026-03-31 (milestone-2 state sync + persistence)
 - Implemented global state synchronization and persistence baseline for Milestone 2.
   - updated `src/state/appStore.ts`
