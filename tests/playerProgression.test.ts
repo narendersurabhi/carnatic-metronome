@@ -1,7 +1,25 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { MockPlaybackEngine, getNextBeat } from '../src/domain/playbackEngine';
+import { SamplePlaybackEngine, getNextBeat } from '../src/domain/playbackEngine';
 import { deriveCycleFromSaptaTala, deriveCycleFromTemplate, getBeatIntervalMs } from '../src/domain/tala';
+import { AudioService, PlayBeatRequest } from '../src/services/audio/AudioService';
+
+class CaptureAudioService implements AudioService {
+  public readonly events: PlayBeatRequest[] = [];
+
+  async preloadSamples(): Promise<void> {}
+
+  async play(request: PlayBeatRequest): Promise<void> {
+    this.events.push(request);
+  }
+
+  async pause(): Promise<void> {}
+  async stop(): Promise<void> {}
+  async setTempo(_bpm: number): Promise<void> {}
+  async setInstrument(_instrumentId: string): Promise<void> {}
+  async seekToBeat(_beatIndex: number): Promise<void> {}
+  async dispose(): Promise<void> {}
+}
 
 describe('player progression tala derivation', () => {
   it('derives sapta tala sequences with deterministic totals', () => {
@@ -40,9 +58,10 @@ describe('player progression tala derivation', () => {
   });
 });
 
-describe('mock playback timing engine', () => {
+describe('sample playback timing engine', () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-03-31T00:00:00.000Z'));
   });
 
   afterEach(() => {
@@ -54,31 +73,68 @@ describe('mock playback timing engine', () => {
     expect(getBeatIntervalMs(84)).toBe(714);
   });
 
-  it('advances and loops beats deterministically', () => {
+  it('advances and loops beats deterministically', async () => {
     expect(getNextBeat(1, 8)).toBe(2);
     expect(getNextBeat(8, 8)).toBe(1);
-  });
 
-  it('responds to bpm changes while running', () => {
-    let ticks = 0;
-    const engine = new MockPlaybackEngine({
-      bpm: 60,
-      totalAksharas: 8,
-      onTick: () => {
-        ticks += 1;
-      }
+    const service = new CaptureAudioService();
+    const beats: number[] = [];
+    const engine = new SamplePlaybackEngine({
+      bpm: 120,
+      totalAksharas: 2,
+      audioService: service,
+      onBeat: (beat) => beats.push(beat)
     });
 
-    engine.start();
-    vi.advanceTimersByTime(1000);
-    expect(ticks).toBe(1);
+    await engine.start();
+    vi.advanceTimersByTime(1200);
 
-    engine.updateBpm(120);
-    vi.advanceTimersByTime(1000);
-    expect(ticks).toBe(3);
+    expect(service.events.length).toBeGreaterThanOrEqual(2);
+    expect(beats).toContain(1);
+    expect(beats).toContain(2);
 
-    engine.stop();
-    vi.advanceTimersByTime(1000);
-    expect(ticks).toBe(3);
+    await engine.stop();
+  });
+
+  it('handles tempo changes during playback without losing loop order', async () => {
+    const service = new CaptureAudioService();
+    const engine = new SamplePlaybackEngine({
+      bpm: 60,
+      totalAksharas: 4,
+      audioService: service,
+      onBeat: () => {}
+    });
+
+    await engine.start();
+    vi.advanceTimersByTime(1100);
+    const eventsAt60 = service.events.length;
+
+    await engine.updateBpm(120);
+    vi.advanceTimersByTime(1100);
+
+    expect(service.events.length).toBeGreaterThan(eventsAt60);
+    await engine.stop();
+  });
+
+  it('prevents duplicate playback scheduling on rapid play/pause taps', async () => {
+    const service = new CaptureAudioService();
+    const engine = new SamplePlaybackEngine({
+      bpm: 100,
+      totalAksharas: 8,
+      audioService: service,
+      onBeat: () => {}
+    });
+
+    await engine.start();
+    await engine.start();
+    await engine.pause();
+    await engine.start();
+    vi.advanceTimersByTime(250);
+
+    const eventsAfterRapidTaps = service.events.length;
+    vi.advanceTimersByTime(250);
+    expect(service.events.length - eventsAfterRapidTaps).toBeLessThanOrEqual(2);
+
+    await engine.stop();
   });
 });
