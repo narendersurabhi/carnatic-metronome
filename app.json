@@ -2,7 +2,7 @@
   "expo": {
     "name": "Carnatic Metronome",
     "slug": "carnatic-metronome",
-    "version": "0.3.0-beta",
+    "version": "0.3.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "assetBundlePatterns": [
@@ -10,7 +10,7 @@
     ],
     "description": "Beta-ready Carnatic tala metronome with editable templates and resilient playback.",
     "scheme": "carnaticmetronome",
-    "owner": "REPLACE_WITH_EXPO_OWNER",
+    "owner": "narendersurabhi",
     "icon": "./assets/icons/app-icon.png",
     "splash": {
       "image": "./assets/splash/splash.png",
@@ -35,7 +35,7 @@
     },
     "extra": {
       "eas": {
-        "projectId": "REPLACE_WITH_EAS_PROJECT_ID"
+        "projectId": "393b527b-f214-4a3f-9acb-307b5e9377f8"
       }
     }
   }
