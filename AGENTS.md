@@ -14,6 +14,13 @@ This file tracks repository status and changes for future agent context.
 - Audio remains interface-only placeholder.
 
 ## Change Log
+### 2026-03-31 (native-stack onAttached runtime fix)
+- Added a runtime compatibility workaround for React Navigation native stack header crash:
+  - updated `App.tsx`
+  - imported `enableScreens` from `react-native-screens`
+  - called `enableScreens(false)` during app bootstrap
+- Result: avoids `ScreenStackHeaderConfigNativeComponent.ts: unknown prop type for "onAttached": "undefined"` by opting out of native screen primitives and using JS fallback screens.
+
 ### 2026-03-31 (jati back-navigation fix)
 - Fixed Talas flow navigation gap from Jati screen back to Tala screen.
   - updated `src/features/tala/JatiSelectionScreen.tsx`
