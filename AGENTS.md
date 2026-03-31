@@ -250,3 +250,17 @@ This file tracks repository status and changes for future agent context.
   - updated `tests/playerProgression.test.ts`
     - added engine scheduling assertions with fake timers + captured audio events
     - covered BPM interval validation, loop wraparound, tempo-change behavior, and rapid play/pause duplicate-playback prevention checks
+
+### 2026-03-31 (player-screen zen UX refresh inspired by Stitch mock)
+- Updated the Player screen to a cleaner, meditation-first layout.
+  - updated `src/features/player/PlayerScreen.tsx`
+    - removed dense state-card block in favor of minimal context hierarchy (jati, tala, compact structure badge)
+    - added central rhythm focus with large-beat presentation via enhanced ring component
+    - refined transport controls into larger circular play/stop actions
+    - added inline tempo controls directly on Player (`-`, `+`, and tappable tempo track)
+    - added de-emphasized instrument caption and kept summary text secondary
+- Enhanced rhythm ring visualization to better match target UX language.
+  - updated `src/components/tala/RhythmCycleRing.tsx`
+    - supports optional anga labels
+    - renders subtle beat markers around the ring
+    - adds active-beat orbit dot and larger glowing center beat numeral
