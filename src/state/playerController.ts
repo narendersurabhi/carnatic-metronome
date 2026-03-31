@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
 
 import { SamplePlaybackEngine } from '../domain/playbackEngine';
 import { ExpoSampleAudioService } from '../services/audio/AudioService';
 import { deriveOrderedBeatSequence } from '../domain/tala';
 import { useAppStore } from './appStore';
+import { analytics } from '../services/analytics/AnalyticsService';
 
 export const usePlayerController = () => {
   const {
@@ -17,6 +19,8 @@ export const usePlayerController = () => {
     setField
   } = useAppStore();
 
+  const [audioError, setAudioError] = useState<string | null>(null);
+
   const cycle = useMemo(
     () =>
       deriveOrderedBeatSequence({
@@ -29,7 +33,7 @@ export const usePlayerController = () => {
 
   const totalAksharas = Math.max(1, cycle.totalAksharas);
   const engineRef = useRef<SamplePlaybackEngine | null>(null);
-  const actionRef = useRef<Promise<void> | null>(null);
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
 
   useEffect(() => {
     if (!engineRef.current) {
@@ -38,14 +42,26 @@ export const usePlayerController = () => {
         totalAksharas,
         audioService: new ExpoSampleAudioService(),
         onBeat: (beat) => setField('activeBeat', beat),
-        onStateChange: (nextState) => setField('playbackState', nextState)
+        onStateChange: (nextState) => {
+          setField('playbackState', nextState);
+          if (nextState === 'playing') {
+            analytics.track('play_start', { talaId: selectedTala, jati: selectedJati, templateId: currentTemplate.id });
+          }
+          if (nextState === 'stopped') {
+            analytics.track('play_stop', { talaId: selectedTala, jati: selectedJati, templateId: currentTemplate.id });
+          }
+        },
+        onError: (error) => {
+          setAudioError(error.message);
+          analytics.track('audio_error', { message: error.message });
+        }
       });
       return;
     }
 
     void engineRef.current.updateBpm(bpm);
     engineRef.current.updateTotalAksharas(totalAksharas);
-  }, [bpm, setField, totalAksharas]);
+  }, [bpm, currentTemplate.id, selectedJati, selectedTala, setField, totalAksharas]);
 
   useEffect(() => {
     void engineRef.current?.setInstrument(selectedInstrument);
@@ -56,6 +72,21 @@ export const usePlayerController = () => {
   }, [selectedTala, selectedJati, currentTemplate.id, currentTemplate.blocks]);
 
   useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      const wasActive = appStateRef.current === 'active';
+      appStateRef.current = nextState;
+
+      if (wasActive && nextState.match(/inactive|background/)) {
+        void engineRef.current?.handleAppBackground();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
+  useEffect(() => {
     return () => {
       if (engineRef.current) {
         void engineRef.current.dispose();
@@ -64,28 +95,20 @@ export const usePlayerController = () => {
     };
   }, []);
 
-  const runSerially = (operation: () => Promise<void>) => {
-    if (actionRef.current) {
-      return;
-    }
-
-    actionRef.current = operation().finally(() => {
-      actionRef.current = null;
-    });
-  };
-
   const togglePlayPause = () => {
     const engine = engineRef.current;
     if (!engine) {
       return;
     }
 
+    setAudioError(null);
     if (playbackState === 'playing') {
-      runSerially(() => engine.pause());
+      void engine.pause();
       return;
     }
 
-    runSerially(() => engine.start());
+    analytics.track('template_play', { templateId: currentTemplate.id, templateName: currentTemplate.name });
+    void engine.start();
   };
 
   const stop = () => {
@@ -94,7 +117,7 @@ export const usePlayerController = () => {
       return;
     }
 
-    runSerially(() => engine.stop());
+    void engine.stop();
   };
 
   return {
@@ -103,9 +126,11 @@ export const usePlayerController = () => {
     activeBeat,
     bpm,
     playbackState,
+    audioError,
     controls: {
       togglePlayPause,
-      stopPlayback: stop
+      stopPlayback: stop,
+      clearAudioError: () => setAudioError(null)
     }
   };
 };

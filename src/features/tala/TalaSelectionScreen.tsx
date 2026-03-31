@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 
 import { TopBar } from '../../components/common/TopBar';
@@ -9,6 +9,7 @@ import { AngaBadge } from '../../components/tala/AngaBadge';
 import { colors } from '../../theme/tokens';
 import { useAppStore } from '../../state/appStore';
 import { SAPTA_TALA_DEFINITIONS, computeTemplateAksharas, generateAngaLabels, getLaghuBeatCount } from '../../domain/tala';
+import { analytics } from '../../services/analytics/AnalyticsService';
 
 export const TalaSelectionScreen = () => {
   const [query, setQuery] = useState('');
@@ -18,7 +19,7 @@ export const TalaSelectionScreen = () => {
   const items = useMemo(
     () =>
       SAPTA_TALA_DEFINITIONS
-        .filter((t) => t.name.toLowerCase().includes(query.toLowerCase()))
+        .filter((t) => t.name.toLowerCase().includes(query.toLowerCase().trim()))
         .map((tala) => {
           const blocks = tala.angaPattern.map((angaType, index) => ({
             id: `${tala.id}-${index + 1}`,
@@ -35,19 +36,27 @@ export const TalaSelectionScreen = () => {
     [query, selectedJati]
   );
 
+  const selectTala = (id: string) => {
+    setField('selectedTala', id);
+    analytics.track('tala_selected', { talaId: id, jati: selectedJati });
+  };
+
   return (
     <View style={styles.screen}>
       <TopBar />
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>Sapta Talas</Text>
         <SearchBar value={query} onChange={setQuery} />
-        <Text style={styles.jatiCta} onPress={() => navigation.navigate('JatiSelection' as never)}>
-          Current Jati: {selectedJati} • Tap to Change
-        </Text>
+        <Pressable hitSlop={12} onPress={() => navigation.navigate('JatiSelection' as never)}>
+          <Text style={styles.jatiCta}>Current Jati: {selectedJati} • Tap to Change</Text>
+        </Pressable>
+
+        {items.length === 0 ? <Text style={styles.empty}>No talas match “{query.trim()}”. Try another search.</Text> : null}
+
         {items.map((t) => {
           const active = t.id === selectedTala;
           return (
-            <View key={t.id} style={[styles.row, active && styles.rowActive]}>
+            <Pressable key={t.id} style={[styles.row, active && styles.rowActive]} onPress={() => selectTala(t.id)}>
               <View style={styles.left}>
                 <Text style={[styles.name, active && styles.nameActive]}>{t.name}</Text>
                 <Text style={[styles.meta, active && styles.metaActive]}>
@@ -58,11 +67,9 @@ export const TalaSelectionScreen = () => {
                 {t.angaLabels.map((a, idx) => (
                   <AngaBadge key={`${t.id}-${idx}`} label={a} active={active && idx === 0} />
                 ))}
-                <Text style={[styles.chev, active && styles.nameActive]} onPress={() => setField('selectedTala', t.id)}>
-                  {active ? '✓' : '›'}
-                </Text>
+                <Text style={[styles.chev, active && styles.nameActive]}>{active ? '✓' : '›'}</Text>
               </View>
-            </View>
+            </Pressable>
           );
         })}
       </ScrollView>
@@ -80,12 +87,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     letterSpacing: 1,
     textTransform: 'uppercase',
-    textAlign: 'center'
+    textAlign: 'center',
+    minHeight: 44,
+    textAlignVertical: 'center'
   },
+  empty: { color: colors.textMuted, textAlign: 'center', marginTop: 12 },
   row: {
     backgroundColor: colors.background,
     borderRadius: 4,
     padding: 14,
+    minHeight: 52,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center'

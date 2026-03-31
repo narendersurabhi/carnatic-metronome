@@ -1,43 +1,41 @@
-# Carnatic Metronome App Foundation (Expo + TypeScript)
+# Carnatic Metronome (Expo + TypeScript)
 
-This repository includes **Milestone 1** of the Carnatic Metronome app: a runnable Expo React Native foundation with shared navigation, design system, domain primitives, and mock state.
+Carnatic Metronome is a React Native/Expo app for tala practice with deterministic cycle derivation, editable tala templates, and sample-based playback.
 
-## Milestone 1 scope
+## Current Scope (Phase 5)
 
-### ✅ Delivered in Milestone 1
-- Expo + TypeScript app shell runs with `expo start`
-- Bottom-tab architecture with app-wide navigation
-- Feature screens implemented and wired:
-  - `PlayerScreen`
-  - `TalaSelectionScreen`
-  - `JatiSelectionScreen`
-  - `SoundAndSruthiScreen`
-  - `TemplateBuilderScreen`
-- Shared theme tokens applied across the feature screens
-- Shared Zustand mock state used across player/tala/jati/settings/templates
-- Tala selection updates current tala in global state
-- Jati selection updates current jati in global state
-- Instrument + sruthi + levels update global sound settings
-- Template builder supports mock add/remove anga block interactions
-- Player screen reflects selected tala, jati, bpm, instrument, and current template visually
-- No backend and no persistence included
-- Audio remains placeholder-only service
+- Robust playback with preload safeguards, serialized transport transitions, and tempo updates while running.
+- Improved UX for player and template builder, including validation, feedback states, and comfortable touch targets.
+- Persisted tala/jati/settings/template data with migration-ready, defensive hydration.
+- Lightweight local analytics hooks (console-based) for launch, playback, tala/jati selection, template lifecycle, and audio errors.
+- Release prep placeholders for metadata, icon assets, splash assets, and package identifiers.
 
-### Milestone 1 structure
-- `src/features/player`
-- `src/features/tala`
-- `src/features/settings`
-- `src/features/templates`
-- `src/components/navigation`
-- `src/components/common`
-- `src/components/tala`
-- `src/components/templates`
-- `src/state`
-- `src/theme`
-- `src/services/audio`
-- `src/domain`
+## Run
 
-## Deferred to Milestone 2
-- TODO(M2): Add persistence for user settings and templates.
-- TODO(M2): Wire template playback to the tala-engine runtime sequence.
-- TODO(M2): Replace mock audio service with real low-latency audio scheduling.
+```bash
+npm install
+npm run start
+```
+
+## Test
+
+```bash
+npm run test
+```
+
+## Build (beta readiness)
+
+> Configure `app.json` placeholders first (`owner`, bundle/package IDs, EAS project ID, icon/splash assets).
+
+```bash
+npm run android
+npm run ios
+```
+
+For cloud beta builds, use EAS once credentials are configured.
+
+## Notes
+
+- Analytics is intentionally lightweight and backend-free in this phase.
+- Audio playback uses `expo-av` sample scheduling and includes debug-safe fallbacks.
+- Persistence is local-only; no backend dependencies are required.
