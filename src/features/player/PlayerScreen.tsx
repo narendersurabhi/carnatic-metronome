@@ -6,7 +6,7 @@ import { TopBar } from '../../components/common/TopBar';
 import { BottomNav } from '../../components/navigation/BottomNav';
 import { RhythmCycleRing } from '../../components/tala/RhythmCycleRing';
 import { colors } from '../../theme/tokens';
-import { SAPTA_TALA_DEFINITIONS, computeTemplateAksharas } from '../../domain/tala';
+import { JATIS, SAPTA_TALA_DEFINITIONS, computeTemplateAksharas, derivePlayerSummaryText } from '../../domain/tala';
 
 export const PlayerScreen = () => {
   const {
@@ -14,6 +14,7 @@ export const PlayerScreen = () => {
     selectedJati,
     bpm,
     selectedInstrument,
+    sruthi,
     currentTemplate,
     isPlaying,
     togglePlay,
@@ -25,7 +26,21 @@ export const PlayerScreen = () => {
     () => SAPTA_TALA_DEFINITIONS.find((t) => t.id === selectedTala)?.name ?? selectedTala,
     [selectedTala]
   );
+  const jatiName = useMemo(() => JATIS.find((j) => j.id === selectedJati)?.name ?? selectedJati, [selectedJati]);
   const templateAksharas = useMemo(() => computeTemplateAksharas(currentTemplate.blocks, selectedJati), [currentTemplate, selectedJati]);
+  const summaryText = useMemo(
+    () =>
+      derivePlayerSummaryText({
+        talaName,
+        jatiName,
+        bpm,
+        instrument: selectedInstrument,
+        sruthi,
+        templateName: currentTemplate.name,
+        totalAksharas: templateAksharas
+      }),
+    [bpm, currentTemplate.name, jatiName, selectedInstrument, sruthi, talaName, templateAksharas]
+  );
 
   useEffect(() => {
     if (!isPlaying) return;
@@ -37,15 +52,17 @@ export const PlayerScreen = () => {
     <View style={styles.screen}>
       <TopBar />
       <View style={styles.content}>
-        <Text style={styles.overline}>{selectedJati} Jati</Text>
+        <Text style={styles.overline}>{jatiName} Jati</Text>
         <Text style={styles.title}>{talaName}</Text>
         <RhythmCycleRing activeBeat={activeBeat} totalBeats={Math.max(1, templateAksharas)} />
         <View style={styles.stateCard}>
           <Text style={styles.meta}>BPM: {bpm}</Text>
           <Text style={styles.meta}>Instrument: {selectedInstrument}</Text>
+          <Text style={styles.meta}>Sruthi: {sruthi}</Text>
           <Text style={styles.meta}>Template: {currentTemplate.name}</Text>
           <Text style={styles.meta}>Template Aksharas: {templateAksharas}</Text>
         </View>
+        <Text style={styles.summary}>{summaryText}</Text>
         <Text style={styles.play} onPress={togglePlay}>
           {isPlaying ? 'Pause' : 'Play'}
         </Text>
@@ -71,5 +88,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceLow
   },
   meta: { color: colors.textMuted, textAlign: 'center' },
+  summary: { color: colors.gold, fontSize: 12, textAlign: 'center', lineHeight: 18 },
   play: { color: colors.gold, borderWidth: 1, borderColor: 'rgba(233,193,118,0.2)', borderRadius: 32, paddingHorizontal: 24, paddingVertical: 12 }
 });

@@ -1,12 +1,27 @@
 import { JATIS, buildSaptaTalaMockData } from '../domain/tala';
-import { SaptaTala, TalaTemplate } from '../domain/models';
+import { PlayerSettings, SaptaTala, SoundSettings, TalaTemplate } from '../domain/models';
 
-export const saptaTalasMock: SaptaTala[] = buildSaptaTalaMockData('CHATURASRA');
+export const defaultPlayerSettings: PlayerSettings = {
+  selectedTala: 'triputa-aadi',
+  selectedJati: 'CHATURASRA',
+  bpm: 84,
+  selectedTemplateId: 'tmpl-1'
+};
+
+export const defaultSoundSettings: SoundSettings = {
+  selectedInstrument: 'Mridangam',
+  sruthi: 'C#',
+  droneEnabled: true,
+  metronomeGain: 82,
+  droneGain: 45
+};
+
+export const saptaTalasMock: SaptaTala[] = buildSaptaTalaMockData(defaultPlayerSettings.selectedJati);
 
 export const jatiOptionsMock = [...JATIS];
 
 export const defaultTemplate: TalaTemplate = {
-  id: 'tmpl-1',
+  id: defaultPlayerSettings.selectedTemplateId,
   name: 'Practice Varnam Slow',
   blocks: [
     { id: 'b1', angaType: 'LAGHU', jatiCount: 4 },

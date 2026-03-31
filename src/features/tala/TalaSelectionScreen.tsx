@@ -8,7 +8,7 @@ import { SearchBar } from '../../components/common/SearchBar';
 import { AngaBadge } from '../../components/tala/AngaBadge';
 import { colors } from '../../theme/tokens';
 import { useAppStore } from '../../state/appStore';
-import { saptaTalasMock } from '../../state/mockData';
+import { SAPTA_TALA_DEFINITIONS, computeTemplateAksharas, generateAngaLabels, getLaghuBeatCount } from '../../domain/tala';
 
 export const TalaSelectionScreen = () => {
   const [query, setQuery] = useState('');
@@ -16,8 +16,23 @@ export const TalaSelectionScreen = () => {
   const { selectedTala, selectedJati, setField } = useAppStore();
 
   const items = useMemo(
-    () => saptaTalasMock.filter((t) => t.name.toLowerCase().includes(query.toLowerCase())),
-    [query]
+    () =>
+      SAPTA_TALA_DEFINITIONS
+        .filter((t) => t.name.toLowerCase().includes(query.toLowerCase()))
+        .map((tala) => {
+          const blocks = tala.angaPattern.map((angaType, index) => ({
+            id: `${tala.id}-${index + 1}`,
+            angaType,
+            jatiCount: angaType === 'LAGHU' ? getLaghuBeatCount(selectedJati) : undefined
+          }));
+
+          return {
+            ...tala,
+            angaLabels: generateAngaLabels(tala.angaPattern, selectedJati),
+            aksharas: computeTemplateAksharas(blocks, selectedJati)
+          };
+        }),
+    [query, selectedJati]
   );
 
   return (

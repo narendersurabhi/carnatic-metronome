@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { computeTemplateAksharas, generateAngaLabels, getAngaBeatCount, getLaghuBeatCount } from '../src/domain/tala';
-import { jatiOptionsMock, saptaTalasMock } from '../src/state/mockData';
+import {
+  computeTemplateAksharas,
+  derivePlayerSummaryText,
+  generateAngaLabels,
+  getAngaBeatCount,
+  getLaghuBeatCount
+} from '../src/domain/tala';
+import { defaultPlayerSettings, defaultSoundSettings, jatiOptionsMock, saptaTalasMock } from '../src/state/mockData';
 
 describe('domain tala helpers', () => {
   it('converts laghu + jati into beat counts', () => {
@@ -37,6 +43,20 @@ describe('domain tala helpers', () => {
       ])
     ).toEqual(['I₇', 'O']);
   });
+
+  it('derives player summary text from app state snapshot', () => {
+    expect(
+      derivePlayerSummaryText({
+        talaName: 'Triputa (Aadi)',
+        jatiName: 'Chaturasra',
+        bpm: 84,
+        instrument: 'Mridangam',
+        sruthi: 'C#',
+        templateName: 'Practice Varnam Slow',
+        totalAksharas: 8
+      })
+    ).toContain('Triputa (Aadi) (Chaturasra)');
+  });
 });
 
 describe('mock data layer', () => {
@@ -49,5 +69,10 @@ describe('mock data layer', () => {
     const aadi = saptaTalasMock.find((tala) => tala.id === 'triputa-aadi');
     expect(aadi?.angaLabels).toEqual(['I₄', 'O', 'O']);
     expect(aadi?.aksharas).toBe(8);
+  });
+
+  it('exposes default player and sound settings', () => {
+    expect(defaultPlayerSettings.selectedTala).toBe('triputa-aadi');
+    expect(defaultSoundSettings.selectedInstrument).toBe('Mridangam');
   });
 });

@@ -14,6 +14,35 @@ This file tracks repository status and changes for future agent context.
 - Audio remains interface-only placeholder.
 
 ## Change Log
+### 2026-03-31 (milestone-2 state sync + persistence)
+- Implemented global state synchronization and persistence baseline for Milestone 2.
+  - updated `src/state/appStore.ts`
+    - switched to persisted Zustand store (`persist` middleware)
+    - persisted: selected tala/jati, player tempo, sound settings, current template, saved templates
+    - added template actions: `saveCurrentTemplate`, `setCurrentTemplate`
+    - laghu block insertion now respects selected jati beat count
+- Expanded pure domain model layer.
+  - updated `src/domain/models.ts`
+    - added framework-independent types: `Anga`, `Beat`, `PlayerSummaryState`
+    - expanded `PlayerSettings` with `selectedTemplateId`
+- Added pure helper for player-readable state summary.
+  - updated `src/domain/tala.ts`
+    - added `derivePlayerSummaryText`
+- Centralized default settings in mock/state seed layer.
+  - updated `src/state/mockData.ts`
+    - added `defaultPlayerSettings`
+    - added `defaultSoundSettings`
+- Wired screens to shared state more accurately.
+  - updated `src/features/player/PlayerScreen.tsx`
+    - now reflects tala, jati, instrument, sruthi, bpm, current template, and summary text
+  - updated `src/features/tala/TalaSelectionScreen.tsx`
+    - tala rows now derive aksharas + anga labels from currently selected jati
+  - updated `src/features/templates/TemplateBuilderScreen.tsx`
+    - akshara total now computed using selected jati
+    - `Save Template` now persists into shared `savedTemplates`
+- Extended domain tests for new helper and defaults.
+  - updated `tests/domain.test.ts`
+
 ### 2026-03-31 (post-jati-fix navigation error hardening)
 - Addressed additional navigation errors that appeared after the Jati back-button update.
   - updated `src/components/navigation/BottomNav.tsx`

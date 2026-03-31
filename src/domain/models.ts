@@ -10,6 +10,18 @@ export interface Jati {
   description: string;
 }
 
+export interface Anga {
+  type: AngaType;
+  beatCount: number;
+  label: string;
+}
+
+export interface Beat {
+  index: number;
+  angaIndex: number;
+  isSamam: boolean;
+}
+
 export interface TemplateBlock {
   id: string;
   angaType: AngaType;
@@ -40,6 +52,7 @@ export interface PlayerSettings {
   selectedTala: string;
   selectedJati: JatiType;
   bpm: number;
+  selectedTemplateId: string;
 }
 
 export interface SoundSettings {
@@ -48,4 +61,14 @@ export interface SoundSettings {
   droneEnabled: boolean;
   metronomeGain: number;
   droneGain: number;
+}
+
+export interface PlayerSummaryState {
+  talaName: string;
+  jatiName: string;
+  bpm: number;
+  instrument: string;
+  sruthi: string;
+  templateName: string;
+  totalAksharas: number;
 }
