@@ -1,3 +1,5 @@
+import { NativeModules } from 'react-native';
+
 export type BeatSampleType = 'STRONG' | 'MEDIUM' | 'WEAK';
 
 export interface PlayBeatRequest {
@@ -27,6 +29,13 @@ const MRIDANGAM_SAMPLE_LIBRARY: Record<string, Record<BeatSampleType, string>> =
 
 const DEFAULT_INSTRUMENT = 'mridangam';
 
+const hasExpoRuntimeAudioModules = (): boolean => {
+  const nativeModules = NativeModules as Record<string, unknown>;
+  const hasConstants = Boolean(nativeModules.ExponentConstants);
+  const hasAssetModule = Boolean(nativeModules.ExpoAsset ?? nativeModules.ExponentAsset);
+  return hasConstants && hasAssetModule;
+};
+
 export class ExpoSampleAudioService implements AudioService {
   private instrumentId = DEFAULT_INSTRUMENT;
   private bpm = 80;
@@ -38,6 +47,12 @@ export class ExpoSampleAudioService implements AudioService {
 
   async preloadSamples(): Promise<void> {
     if (this.isLoaded) {
+      return;
+    }
+
+    if (!hasExpoRuntimeAudioModules()) {
+      this.hasNativeAudio = false;
+      this.isLoaded = true;
       return;
     }
 
