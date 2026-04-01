@@ -19,6 +19,13 @@ export interface AudioService {
   dispose(): Promise<void>;
 }
 
+type WebAudioLike = {
+  currentTime: number;
+  preload: string;
+  play: () => Promise<void>;
+  pause: () => void;
+};
+
 const MRIDANGAM_SAMPLE_LIBRARY: Record<string, Record<BeatSampleType, string>> = {
   mridangam: {
     STRONG: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_7f6eb7f830.mp3?filename=drum-hit-1-44370.mp3',
@@ -36,6 +43,9 @@ const hasExpoRuntimeAudioModules = (): boolean => {
   return hasConstants && hasAssetModule;
 };
 
+const supportsWebAudioElement = (): boolean =>
+  typeof globalThis !== 'undefined' && typeof (globalThis as { Audio?: unknown }).Audio === 'function';
+
 export class ExpoSampleAudioService implements AudioService {
   private instrumentId = DEFAULT_INSTRUMENT;
   private bpm = 80;
@@ -43,7 +53,9 @@ export class ExpoSampleAudioService implements AudioService {
   private expoAudio: any = null;
   private isLoaded = false;
   private hasNativeAudio = true;
+  private hasWebAudio = false;
   private scheduledPlayback = new Set<ReturnType<typeof setTimeout>>();
+  private webAudioElements: Partial<Record<BeatSampleType, WebAudioLike>> = {};
 
   async preloadSamples(): Promise<void> {
     if (this.isLoaded) {
@@ -51,19 +63,28 @@ export class ExpoSampleAudioService implements AudioService {
     }
 
     if (!hasExpoRuntimeAudioModules()) {
+      await this.initializeWebAudioFallback();
+      if (!this.hasWebAudio) {
+        this.hasNativeAudio = false;
+        this.isLoaded = true;
+        return;
+      }
+    }
+
+    const expoAvModule = await import('expo-av').catch(() => null);
+    if (!expoAvModule?.Audio?.Sound) {
+      await this.initializeWebAudioFallback();
+      if (!this.hasWebAudio) {
+        this.hasNativeAudio = false;
+        this.isLoaded = true;
+        return;
+      }
       this.hasNativeAudio = false;
       this.isLoaded = true;
       return;
     }
 
-    const expoAv = await import('expo-av').catch(() => null);
-    if (!expoAv?.Audio?.Sound) {
-      this.hasNativeAudio = false;
-      this.isLoaded = true;
-      return;
-    }
-
-    this.expoAudio = expoAv.Audio;
+    this.expoAudio = expoAvModule.Audio;
     await this.expoAudio.setAudioModeAsync({
       playsInSilentModeIOS: true,
       staysActiveInBackground: false,
@@ -78,11 +99,22 @@ export class ExpoSampleAudioService implements AudioService {
     if (!this.isLoaded) {
       await this.preloadSamples();
     }
-    if (!this.hasNativeAudio) {
+    if (!this.hasNativeAudio && !this.hasWebAudio) {
       return;
     }
 
     const trigger = async () => {
+      if (this.hasWebAudio) {
+        const element = this.webAudioElements[request.sampleType] ?? this.webAudioElements.WEAK;
+        if (!element) {
+          return;
+        }
+
+        element.currentTime = 0;
+        await element.play();
+        return;
+      }
+
       const sound = this.sounds[request.sampleType] ?? this.sounds.WEAK;
       if (!sound) {
         return;
@@ -110,7 +142,17 @@ export class ExpoSampleAudioService implements AudioService {
 
   async stop(): Promise<void> {
     this.clearScheduledPlayback();
-    if (!this.hasNativeAudio) {
+    if (!this.hasNativeAudio && !this.hasWebAudio) {
+      return;
+    }
+
+    if (this.hasWebAudio) {
+      Object.values(this.webAudioElements).forEach((element) => {
+        if (element) {
+          element.pause();
+          element.currentTime = 0;
+        }
+      });
       return;
     }
     await Promise.all(
@@ -131,6 +173,11 @@ export class ExpoSampleAudioService implements AudioService {
     const nextInstrument = MRIDANGAM_SAMPLE_LIBRARY[instrumentId] ? instrumentId : DEFAULT_INSTRUMENT;
     this.instrumentId = nextInstrument;
 
+    if (this.hasWebAudio) {
+      await this.initializeWebAudioFallback();
+      return;
+    }
+
     if (!this.expoAudio || !this.hasNativeAudio) {
       return;
     }
@@ -145,12 +192,37 @@ export class ExpoSampleAudioService implements AudioService {
 
   async dispose(): Promise<void> {
     await this.stop();
-    if (!this.hasNativeAudio) {
+    if (!this.hasNativeAudio && !this.hasWebAudio) {
       this.isLoaded = false;
       return;
     }
+
+    if (this.hasWebAudio) {
+      this.webAudioElements = {};
+      this.hasWebAudio = false;
+      this.isLoaded = false;
+      return;
+    }
+
     await this.unloadSamples();
     this.isLoaded = false;
+  }
+
+  private async initializeWebAudioFallback(): Promise<void> {
+    if (!supportsWebAudioElement()) {
+      this.hasWebAudio = false;
+      return;
+    }
+
+    const library = MRIDANGAM_SAMPLE_LIBRARY[this.instrumentId] ?? MRIDANGAM_SAMPLE_LIBRARY[DEFAULT_INSTRUMENT];
+    this.webAudioElements = Object.fromEntries(
+      (Object.keys(library) as BeatSampleType[]).map((sampleType) => {
+        const audio = new Audio(library[sampleType]) as WebAudioLike;
+        audio.preload = 'auto';
+        return [sampleType, audio] as const;
+      })
+    );
+    this.hasWebAudio = true;
   }
 
   private async loadInstrument(instrumentId: string): Promise<void> {
