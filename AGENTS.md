@@ -14,6 +14,14 @@ This file tracks repository status and changes for future agent context.
 - Audio remains interface-only placeholder.
 
 ## Change Log
+### 2026-04-01 (prevent expo-av bootstrap errors when Expo native asset/constants modules are missing)
+- Reduced runtime error noise and guarded audio bootstrap in unsupported runtimes.
+  - updated `src/services/audio/AudioService.ts`
+    - added native-module availability guard using `NativeModules` before attempting dynamic `expo-av` import
+    - requires `ExponentConstants` and `ExpoAsset`/`ExponentAsset` presence for native audio path
+    - short-circuits to no-op fallback audio mode when required Expo native modules are unavailable
+- Result: avoids triggering `Cannot find native module 'ExpoAsset'` during play attempts in runtimes that lack Expo native modules, while preserving beat progression and transport behavior.
+
 ### 2026-04-01 (runtime bootstrap fallback for missing Expo native modules)
 - Added a React Native entrypoint that registers `main` directly without `expo/AppEntry`.
   - added `index.js`
