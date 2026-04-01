@@ -26,6 +26,28 @@ type WebAudioLike = {
   pause: () => void;
 };
 
+type WebAudioContextLike = {
+  currentTime: number;
+  state: string;
+  resume: () => Promise<void>;
+  createGain: () => {
+    connect: (destination: unknown) => void;
+    gain: {
+      value: number;
+      setValueAtTime: (value: number, time: number) => void;
+      exponentialRampToValueAtTime: (value: number, time: number) => void;
+    };
+  };
+  createOscillator: () => {
+    type: string;
+    frequency: { value: number };
+    connect: (destination: unknown) => void;
+    start: (when?: number) => void;
+    stop: (when?: number) => void;
+  };
+  destination: unknown;
+};
+
 const MRIDANGAM_SAMPLE_LIBRARY: Record<string, Record<BeatSampleType, string>> = {
   mridangam: {
     STRONG: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_7f6eb7f830.mp3?filename=drum-hit-1-44370.mp3',
@@ -46,6 +68,18 @@ const hasExpoRuntimeAudioModules = (): boolean => {
 const supportsWebAudioElement = (): boolean =>
   typeof globalThis !== 'undefined' && typeof (globalThis as { Audio?: unknown }).Audio === 'function';
 
+const supportsWebAudioContext = (): boolean => {
+  if (typeof globalThis === 'undefined') {
+    return false;
+  }
+
+  const maybeAudioContext = globalThis as {
+    AudioContext?: new () => WebAudioContextLike;
+    webkitAudioContext?: new () => WebAudioContextLike;
+  };
+  return typeof maybeAudioContext.AudioContext === 'function' || typeof maybeAudioContext.webkitAudioContext === 'function';
+};
+
 export class ExpoSampleAudioService implements AudioService {
   private instrumentId = DEFAULT_INSTRUMENT;
   private bpm = 80;
@@ -54,8 +88,10 @@ export class ExpoSampleAudioService implements AudioService {
   private isLoaded = false;
   private hasNativeAudio = true;
   private hasWebAudio = false;
+  private hasWebOscillator = false;
   private scheduledPlayback = new Set<ReturnType<typeof setTimeout>>();
   private webAudioElements: Partial<Record<BeatSampleType, WebAudioLike>> = {};
+  private webAudioContext: WebAudioContextLike | null = null;
 
   async preloadSamples(): Promise<void> {
     if (this.isLoaded) {
@@ -63,8 +99,8 @@ export class ExpoSampleAudioService implements AudioService {
     }
 
     if (!hasExpoRuntimeAudioModules()) {
-      await this.initializeWebAudioFallback();
-      if (!this.hasWebAudio) {
+      await this.initializeWebFallbacks();
+      if (!this.hasWebAudio && !this.hasWebOscillator) {
         this.hasNativeAudio = false;
         this.isLoaded = true;
         return;
@@ -73,8 +109,8 @@ export class ExpoSampleAudioService implements AudioService {
 
     const expoAvModule = await import('expo-av').catch(() => null);
     if (!expoAvModule?.Audio?.Sound) {
-      await this.initializeWebAudioFallback();
-      if (!this.hasWebAudio) {
+      await this.initializeWebFallbacks();
+      if (!this.hasWebAudio && !this.hasWebOscillator) {
         this.hasNativeAudio = false;
         this.isLoaded = true;
         return;
@@ -99,7 +135,7 @@ export class ExpoSampleAudioService implements AudioService {
     if (!this.isLoaded) {
       await this.preloadSamples();
     }
-    if (!this.hasNativeAudio && !this.hasWebAudio) {
+    if (!this.hasNativeAudio && !this.hasWebAudio && !this.hasWebOscillator) {
       return;
     }
 
@@ -107,11 +143,19 @@ export class ExpoSampleAudioService implements AudioService {
       if (this.hasWebAudio) {
         const element = this.webAudioElements[request.sampleType] ?? this.webAudioElements.WEAK;
         if (!element) {
+          await this.triggerOscillatorFallback(request.sampleType);
           return;
         }
 
         element.currentTime = 0;
-        await element.play();
+        await element.play().catch(async () => {
+          await this.triggerOscillatorFallback(request.sampleType);
+        });
+        return;
+      }
+
+      if (this.hasWebOscillator) {
+        await this.triggerOscillatorFallback(request.sampleType);
         return;
       }
 
@@ -142,7 +186,7 @@ export class ExpoSampleAudioService implements AudioService {
 
   async stop(): Promise<void> {
     this.clearScheduledPlayback();
-    if (!this.hasNativeAudio && !this.hasWebAudio) {
+    if (!this.hasNativeAudio && !this.hasWebAudio && !this.hasWebOscillator) {
       return;
     }
 
@@ -153,6 +197,10 @@ export class ExpoSampleAudioService implements AudioService {
           element.currentTime = 0;
         }
       });
+    }
+
+    if (this.hasWebOscillator && this.webAudioContext?.state === 'running') {
+      // no-op: oscillators are short one-shot sounds, clearing scheduled playback is sufficient.
       return;
     }
     await Promise.all(
@@ -173,8 +221,8 @@ export class ExpoSampleAudioService implements AudioService {
     const nextInstrument = MRIDANGAM_SAMPLE_LIBRARY[instrumentId] ? instrumentId : DEFAULT_INSTRUMENT;
     this.instrumentId = nextInstrument;
 
-    if (this.hasWebAudio) {
-      await this.initializeWebAudioFallback();
+    if (this.hasWebAudio || this.hasWebOscillator) {
+      await this.initializeWebFallbacks();
       return;
     }
 
@@ -192,20 +240,27 @@ export class ExpoSampleAudioService implements AudioService {
 
   async dispose(): Promise<void> {
     await this.stop();
-    if (!this.hasNativeAudio && !this.hasWebAudio) {
+    if (!this.hasNativeAudio && !this.hasWebAudio && !this.hasWebOscillator) {
       this.isLoaded = false;
       return;
     }
 
-    if (this.hasWebAudio) {
+    if (this.hasWebAudio || this.hasWebOscillator) {
       this.webAudioElements = {};
       this.hasWebAudio = false;
+      this.hasWebOscillator = false;
+      this.webAudioContext = null;
       this.isLoaded = false;
       return;
     }
 
     await this.unloadSamples();
     this.isLoaded = false;
+  }
+
+  private async initializeWebFallbacks(): Promise<void> {
+    await this.initializeWebAudioFallback();
+    this.initializeOscillatorFallback();
   }
 
   private async initializeWebAudioFallback(): Promise<void> {
@@ -223,6 +278,59 @@ export class ExpoSampleAudioService implements AudioService {
       })
     );
     this.hasWebAudio = true;
+  }
+
+  private initializeOscillatorFallback(): void {
+    if (!supportsWebAudioContext()) {
+      this.hasWebOscillator = false;
+      return;
+    }
+
+    if (!this.webAudioContext) {
+      const maybeAudioContext = globalThis as {
+        AudioContext?: new () => WebAudioContextLike;
+        webkitAudioContext?: new () => WebAudioContextLike;
+      };
+      const Ctor = maybeAudioContext.AudioContext ?? maybeAudioContext.webkitAudioContext;
+      if (!Ctor) {
+        this.hasWebOscillator = false;
+        return;
+      }
+      this.webAudioContext = new Ctor();
+    }
+
+    this.hasWebOscillator = true;
+  }
+
+  private async triggerOscillatorFallback(sampleType: BeatSampleType): Promise<void> {
+    if (!this.hasWebOscillator) {
+      return;
+    }
+
+    const context = this.webAudioContext;
+    if (!context) {
+      return;
+    }
+
+    if (context.state === 'suspended') {
+      await context.resume().catch(() => undefined);
+    }
+
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    const now = context.currentTime;
+    const frequency = sampleType === 'STRONG' ? 220 : sampleType === 'MEDIUM' ? 190 : 160;
+    oscillator.type = 'triangle';
+    oscillator.frequency.value = frequency;
+
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.3, now + 0.005);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
+
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start(now);
+    oscillator.stop(now + 0.08);
   }
 
   private async loadInstrument(instrumentId: string): Promise<void> {

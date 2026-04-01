@@ -14,6 +14,15 @@ This file tracks repository status and changes for future agent context.
 - Audio remains interface-only placeholder.
 
 ## Change Log
+### 2026-04-01 (web-audio oscillator fallback when sample playback is blocked)
+- Improved no-sound recovery in browser/unsupported-native environments where HTML audio playback can fail due to autoplay or media restrictions.
+  - updated `src/services/audio/AudioService.ts`
+    - added Web Audio API (`AudioContext`) oscillator fallback detection and initialization
+    - added per-beat synthesized click generation as a backup for STRONG/MEDIUM/WEAK beats
+    - updated playback flow to fall back to oscillator clicks when HTML audio element playback fails
+    - updated stop/dispose/instrument switch paths to handle native, HTML audio, and oscillator fallback modes safely
+- Result: metronome still produces audible beat clicks even when remote sample URLs or HTML media playback are blocked.
+
 ### 2026-04-01 (restore audible beat playback with web-audio fallback)
 - Fixed silent playback in runtimes where Expo native audio modules are unavailable but browser audio is supported.
   - updated `src/services/audio/AudioService.ts`
