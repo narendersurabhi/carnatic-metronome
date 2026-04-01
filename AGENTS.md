@@ -14,6 +14,24 @@ This file tracks repository status and changes for future agent context.
 - Audio remains interface-only placeholder.
 
 ## Change Log
+### 2026-04-01 (embedded in-app audio samples, no CDN dependency)
+- Replaced network-hosted metronome samples with embedded in-app audio data URIs.
+  - added `src/services/audio/embeddedSamples.ts`
+    - defines embedded WAV click samples for STRONG/MEDIUM/WEAK accents
+    - exposes `EMBEDDED_SAMPLE_LIBRARY` keyed by instrument
+  - updated `src/services/audio/AudioService.ts`
+    - switched sample library usage from remote URLs to `EMBEDDED_SAMPLE_LIBRARY`
+    - keeps existing native + web + oscillator fallback flow intact while removing runtime network dependency for sample files
+- Result: app audio samples are bundled in code and can play without fetching external CDN URLs.
+
+### 2026-04-01 (native sample-load failure fallback + runtime self-healing)
+- Improved resilience when native sample setup/playback fails at runtime.
+  - updated `src/services/audio/AudioService.ts`
+    - wrapped native `expo-av` audio-mode + sample-load bootstrap so failures no longer abort playback setup
+    - on native bootstrap failure, now unloads partial native sounds and automatically switches to web HTML-audio / oscillator fallback paths
+    - on native per-beat replay failure, now self-heals by disabling native mode and immediately retrying the beat through fallback audio paths
+- Result: playback remains audible more often in restricted/partially-supported runtimes instead of failing silently after native audio errors.
+
 ### 2026-04-01 (web-audio oscillator fallback when sample playback is blocked)
 - Improved no-sound recovery in browser/unsupported-native environments where HTML audio playback can fail due to autoplay or media restrictions.
   - updated `src/services/audio/AudioService.ts`
