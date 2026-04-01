@@ -14,6 +14,14 @@ This file tracks repository status and changes for future agent context.
 - Audio remains interface-only placeholder.
 
 ## Change Log
+### 2026-04-01 (player play-button recovery when native audio module is unavailable)
+- Fixed Player screen play flow so transport can start even when `expo-av` cannot be loaded in the current runtime.
+  - updated `src/services/audio/AudioService.ts`
+    - added graceful fallback behavior in `ExpoSampleAudioService.preloadSamples` when `expo-av` import is unavailable
+    - avoids throwing preload errors that previously blocked `SamplePlaybackEngine.start()`
+    - added no-op guarded behavior for `play`, `stop`, `setInstrument`, and `dispose` when native audio is unavailable
+- Result: Play/Pause on `PlayerScreen` continues to drive beat progression and transport state instead of appearing unresponsive in unsupported audio environments.
+
 ### 2026-03-31 (phase-5 production hardening + ship readiness)
 - Hardened playback flow for safer runtime behavior.
   - updated `src/domain/playbackEngine.ts`

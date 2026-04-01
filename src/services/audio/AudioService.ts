@@ -33,6 +33,7 @@ export class ExpoSampleAudioService implements AudioService {
   private sounds: Partial<Record<BeatSampleType, any>> = {};
   private expoAudio: any = null;
   private isLoaded = false;
+  private hasNativeAudio = true;
   private scheduledPlayback = new Set<ReturnType<typeof setTimeout>>();
 
   async preloadSamples(): Promise<void> {
@@ -42,7 +43,9 @@ export class ExpoSampleAudioService implements AudioService {
 
     const expoAv = await import('expo-av').catch(() => null);
     if (!expoAv?.Audio?.Sound) {
-      throw new Error('expo-av is not available; cannot preload metronome samples');
+      this.hasNativeAudio = false;
+      this.isLoaded = true;
+      return;
     }
 
     this.expoAudio = expoAv.Audio;
@@ -59,6 +62,9 @@ export class ExpoSampleAudioService implements AudioService {
   async play(request: PlayBeatRequest): Promise<void> {
     if (!this.isLoaded) {
       await this.preloadSamples();
+    }
+    if (!this.hasNativeAudio) {
+      return;
     }
 
     const trigger = async () => {
@@ -89,6 +95,9 @@ export class ExpoSampleAudioService implements AudioService {
 
   async stop(): Promise<void> {
     this.clearScheduledPlayback();
+    if (!this.hasNativeAudio) {
+      return;
+    }
     await Promise.all(
       Object.values(this.sounds).map(async (sound) => {
         if (sound) {
@@ -107,7 +116,7 @@ export class ExpoSampleAudioService implements AudioService {
     const nextInstrument = MRIDANGAM_SAMPLE_LIBRARY[instrumentId] ? instrumentId : DEFAULT_INSTRUMENT;
     this.instrumentId = nextInstrument;
 
-    if (!this.expoAudio) {
+    if (!this.expoAudio || !this.hasNativeAudio) {
       return;
     }
 
@@ -121,6 +130,10 @@ export class ExpoSampleAudioService implements AudioService {
 
   async dispose(): Promise<void> {
     await this.stop();
+    if (!this.hasNativeAudio) {
+      this.isLoaded = false;
+      return;
+    }
     await this.unloadSamples();
     this.isLoaded = false;
   }
