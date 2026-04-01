@@ -14,6 +14,14 @@ This file tracks repository status and changes for future agent context.
 - Audio remains interface-only placeholder.
 
 ## Change Log
+### 2026-04-01 (restore audible beat playback with web-audio fallback)
+- Fixed silent playback in runtimes where Expo native audio modules are unavailable but browser audio is supported.
+  - updated `src/services/audio/AudioService.ts`
+    - added `Audio` element capability detection for web environments
+    - added fallback sample preloading + beat trigger playback using HTML audio elements
+    - updated transport stop/dispose/instrument-switch flows to handle both Expo native audio and web-audio fallback paths
+- Result: users hear beat samples again in web/unsupported-native runtimes instead of seeing silent progression-only playback.
+
 ### 2026-04-01 (prevent expo-av bootstrap errors when Expo native asset/constants modules are missing)
 - Reduced runtime error noise and guarded audio bootstrap in unsupported runtimes.
   - updated `src/services/audio/AudioService.ts`
