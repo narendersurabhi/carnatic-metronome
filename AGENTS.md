@@ -14,6 +14,14 @@ This file tracks repository status and changes for future agent context.
 - Audio remains interface-only placeholder.
 
 ## Change Log
+### 2026-04-01 (runtime bootstrap fallback for missing Expo native modules)
+- Added a React Native entrypoint that registers `main` directly without `expo/AppEntry`.
+  - added `index.js`
+    - uses `AppRegistry.registerComponent('main', ...)` to ensure app registration still occurs even when Expo native bootstrap modules are unavailable
+  - updated `package.json`
+    - changed `main` from `expo/AppEntry` to `index.js`
+- Result: avoids startup crashes like `Cannot find native module 'ExpoAsset'` / `No native ExponentConstants module` cascading into `"main" has not been registered` when running in runtimes missing Expo native modules.
+
 ### 2026-04-01 (player play-button recovery when native audio module is unavailable)
 - Fixed Player screen play flow so transport can start even when `expo-av` cannot be loaded in the current runtime.
   - updated `src/services/audio/AudioService.ts`
