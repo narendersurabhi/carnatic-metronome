@@ -11,7 +11,8 @@ const instruments = [
   { id: 'Mridangam', subtitle: 'Earth & Skin' },
   { id: 'Tabla', subtitle: 'Bright Resonant' },
   { id: 'Manjira', subtitle: 'Sharp Metallic' },
-  { id: 'Bell', subtitle: 'Sanctum Echo' }
+  { id: 'Bell', subtitle: 'Sanctum Echo' },
+  { id: 'Synth Click', subtitle: 'Web Audio Fallback' }
 ];
 
 const notes = ['A', 'A#', 'B', 'C', 'C#', 'D', 'D#', 'E', 'F'];

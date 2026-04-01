@@ -9,5 +9,20 @@ export const EMBEDDED_SAMPLE_LIBRARY: Record<string, Record<BeatSampleType, stri
     STRONG: STRONG_CLICK_WAV,
     MEDIUM: MEDIUM_CLICK_WAV,
     WEAK: WEAK_CLICK_WAV
+  },
+  tabla: {
+    STRONG: STRONG_CLICK_WAV,
+    MEDIUM: MEDIUM_CLICK_WAV,
+    WEAK: WEAK_CLICK_WAV
+  },
+  manjira: {
+    STRONG: STRONG_CLICK_WAV,
+    MEDIUM: MEDIUM_CLICK_WAV,
+    WEAK: WEAK_CLICK_WAV
+  },
+  bell: {
+    STRONG: STRONG_CLICK_WAV,
+    MEDIUM: MEDIUM_CLICK_WAV,
+    WEAK: WEAK_CLICK_WAV
   }
 };
