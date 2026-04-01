@@ -50,6 +50,30 @@ type WebAudioContextLike = {
 };
 
 const DEFAULT_INSTRUMENT = 'mridangam';
+const SYNTH_CLICK_INSTRUMENT = 'synth-click';
+
+const normalizeInstrumentId = (instrumentId: string): string => {
+  const normalized = instrumentId.trim().toLowerCase();
+  if (normalized === 'synth click' || normalized === SYNTH_CLICK_INSTRUMENT) {
+    return SYNTH_CLICK_INSTRUMENT;
+  }
+
+  const mapped = normalized.replace(/\s+/g, '');
+  if (mapped === 'mridangam') {
+    return 'mridangam';
+  }
+  if (mapped === 'tabla') {
+    return 'tabla';
+  }
+  if (mapped === 'manjira') {
+    return 'manjira';
+  }
+  if (mapped === 'bell') {
+    return 'bell';
+  }
+
+  return mapped;
+};
 
 const hasExpoRuntimeAudioModules = (): boolean => {
   const nativeModules = NativeModules as Record<string, unknown>;
@@ -88,6 +112,14 @@ export class ExpoSampleAudioService implements AudioService {
 
   async preloadSamples(): Promise<void> {
     if (this.isLoaded) {
+      return;
+    }
+
+    if (this.instrumentId === SYNTH_CLICK_INSTRUMENT) {
+      this.hasNativeAudio = false;
+      this.hasWebAudio = false;
+      this.initializeOscillatorFallback();
+      this.isLoaded = true;
       return;
     }
 
@@ -224,8 +256,21 @@ export class ExpoSampleAudioService implements AudioService {
   }
 
   async setInstrument(instrumentId: string): Promise<void> {
-    const nextInstrument = EMBEDDED_SAMPLE_LIBRARY[instrumentId] ? instrumentId : DEFAULT_INSTRUMENT;
+    const normalizedInstrumentId = normalizeInstrumentId(instrumentId);
+    const nextInstrument =
+      normalizedInstrumentId === SYNTH_CLICK_INSTRUMENT || EMBEDDED_SAMPLE_LIBRARY[normalizedInstrumentId]
+        ? normalizedInstrumentId
+        : DEFAULT_INSTRUMENT;
     this.instrumentId = nextInstrument;
+
+    if (nextInstrument === SYNTH_CLICK_INSTRUMENT) {
+      await this.unloadSamples().catch(() => undefined);
+      this.webAudioElements = {};
+      this.hasWebAudio = false;
+      this.hasNativeAudio = false;
+      this.initializeOscillatorFallback();
+      return;
+    }
 
     if (this.hasWebAudio || this.hasWebOscillator) {
       await this.initializeWebFallbacks();
@@ -270,6 +315,12 @@ export class ExpoSampleAudioService implements AudioService {
   }
 
   private async initializeWebAudioFallback(): Promise<void> {
+    if (this.instrumentId === SYNTH_CLICK_INSTRUMENT) {
+      this.hasWebAudio = false;
+      this.webAudioElements = {};
+      return;
+    }
+
     if (!supportsWebAudioElement()) {
       this.hasWebAudio = false;
       return;

@@ -14,6 +14,20 @@ This file tracks repository status and changes for future agent context.
 - Audio remains interface-only placeholder.
 
 ## Change Log
+### 2026-04-01 (added known-working Synth Click audio option)
+- Added an explicit instrument option that uses the existing Web Audio oscillator path directly.
+  - updated `src/services/audio/AudioService.ts`
+    - added instrument normalization for UI labels (`Mridangam`, `Tabla`, `Manjira`, `Bell`, `Synth Click`)
+    - added `synth-click` mode that bypasses sample loading and forces oscillator-based playback
+    - updated instrument switching and web-audio initialization to disable HTML sample playback in synth-click mode
+- Expanded embedded sample-library keys to include existing instrument IDs used in settings UI.
+  - updated `src/services/audio/embeddedSamples.ts`
+    - added `tabla`, `manjira`, and `bell` entries mapped to embedded click sample set
+- Exposed the new selectable option in settings.
+  - updated `src/features/settings/SoundAndSruthiScreen.tsx`
+    - added `Synth Click` instrument card (`Web Audio Fallback`)
+- Result: users can choose a known-working synthesized click path even when sample-based audio playback is blocked.
+
 ### 2026-04-01 (embedded in-app audio samples, no CDN dependency)
 - Replaced network-hosted metronome samples with embedded in-app audio data URIs.
   - added `src/services/audio/embeddedSamples.ts`
